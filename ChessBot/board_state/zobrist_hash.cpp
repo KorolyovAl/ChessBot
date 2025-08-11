@@ -5,6 +5,7 @@
 
 // Static members
 std::array<std::array<std::array<uint64_t, static_cast<int>(PieceType::Count)>, 2>, 64> ZobristHash::piece_keys_{};
+std::array<uint64_t, 8> ZobristHash::en_passant_file_keys_{};
 uint64_t ZobristHash::black_to_move_key_ = 0;
 uint64_t ZobristHash::white_long_castling_key_ = 0;
 uint64_t ZobristHash::white_short_castling_key_ = 0;
@@ -34,6 +35,10 @@ void ZobristHash::InitConstants() {
         white_short_castling_key_  = dist(rng);
         black_long_castling_key_   = dist(rng);
         black_short_castling_key_  = dist(rng);
+
+        for (int f = 0; f < 8; ++f) {
+            en_passant_file_keys_[f] = dist(rng);
+        }
     });
 }
 
@@ -84,6 +89,10 @@ void ZobristHash::InvertBlackLongCastling() {
 
 void ZobristHash::InvertBlackShortCastling() {
     value_ ^= black_short_castling_key_;
+}
+
+void ZobristHash::InvertEnPassantFile(uint8_t file) {
+    value_ ^= en_passant_file_keys_[file & 7];
 }
 
 uint64_t ZobristHash::GetValue() const {

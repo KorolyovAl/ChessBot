@@ -34,6 +34,7 @@ public:
     void InvertWhiteShortCastling();
     void InvertBlackLongCastling();
     void InvertBlackShortCastling();
+    void InvertEnPassantFile(uint8_t file);
 
     uint64_t GetValue() const;
 
@@ -43,6 +44,7 @@ private:
     uint64_t value_ = 0;
 
     static std::array<std::array<std::array<uint64_t, 6>, 2>, 64> piece_keys_;
+    static std::array<uint64_t, 8> en_passant_file_keys_;
     static uint64_t black_to_move_key_;
     static uint64_t white_long_castling_key_;
     static uint64_t white_short_castling_key_;

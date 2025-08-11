@@ -8,12 +8,6 @@ CONFIG += c++20
 TEMPLATE = app
 
 SOURCES +=  \
-    bitboard_test.cpp \
-    main_test.cpp \
-    mask_gen_test.cpp \
-    move_test.cpp \
-    pieces_test.cpp \
-    \
     ../ChessBot/board_state/pieces.cpp \
     ../ChessBot/board_state/bitboard.cpp \
     ../ChessBot/board_state/move.cpp \
@@ -21,11 +15,23 @@ SOURCES +=  \
     ../ChessBot/board_state/position.cpp \
     ../ChessBot/board_state/repetition_history.cpp\
     ../ChessBot/move_generation/ps_legal_move_mask_gen.cpp \
+    ../ChessBot/move_generation/move_list.cpp \
+    ../ChessBot/move_generation/legal_move_gen.cpp \
+    \
+    bitboard_test.cpp \
+    legal_move_gen_test.cpp \
+    legal_move_gen_tester.cpp \
+    main_test.cpp \
+    mask_gen_test.cpp \
+    move_test.cpp \
+    pieces_test.cpp \
     position_test.cpp \
     zobrist_hash_test.cpp
 
 HEADERS += \
     bitboard_test.h \
+    legal_move_gen_test.h \
+    legal_move_gen_tester.h \
     mask_gen_test.h \
     move_test.h \
     pieces_test.h \

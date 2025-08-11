@@ -24,9 +24,7 @@ public:
     Position(const std::string& short_fen, uint8_t en_passant,
              bool white_long, bool white_short,
              bool black_long, bool black_short,
-             float move_counter);
-
-    void ApplyMove(Move move);
+             uint16_t move_counter);
 
     // Read-only accessors
     const Pieces& GetPieces() const;
@@ -45,6 +43,29 @@ public:
     friend std::ostream& operator<<(std::ostream& os, const Position& position);
 
     static constexpr uint8_t NONE = 255;
+
+    struct Undo {
+        uint8_t EnPassantBefore = NONE;
+        bool WhiteLongBefore = false;
+        bool WhiteShortBefore = false;
+        bool BlackLongBefore = false;
+        bool BlackShortBefore = false;
+
+        uint8_t FiftyBefore = 0;
+        uint16_t MoveCounterBefore = 0;
+
+        uint8_t CapturedType = NONE;
+        uint8_t CapturedSide = NONE;
+        uint8_t CapturedSquare = NONE;   // для en_passant — реальный квадрат съеденной пешки
+
+        uint8_t RookFrom = NONE;         // для рокировок
+        uint8_t RookTo   = NONE;
+    };
+
+    void ApplyMove(Move move);
+    void ApplyMove(Move move, Undo& u);
+    void UndoMove(Move move, const Undo& u);
+    uint64_t GetZobristKey() const { return hash_.GetValue(); } // для TT
 
 private:
     friend class PositionTest;
