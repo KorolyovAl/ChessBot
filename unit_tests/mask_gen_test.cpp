@@ -8,8 +8,7 @@
 /*──────────────────── Pawn attack LUT ───────────────────*/
 
 /* 1. Checks that white pawn on e4 attacks d5 & f5, nothing else */
-void MaskGenTest::PawnAttackMaskShouldMatchExpected()
-{
+void MaskGenTest::PawnAttackMaskShouldMatchExpected() {
     int e4 = 28;              // square index (4,3)
     Bitboard mask = PawnMasks::kAttack[static_cast<int>(Side::White)][e4];
 
@@ -24,8 +23,7 @@ void MaskGenTest::PawnAttackMaskShouldMatchExpected()
 /*──────────────────── Rook ray cutting ──────────────────*/
 
 /* 2. a1 rook, own knight on a3 ➜ mask ends at a2, a3 excluded */
-void MaskGenTest::RookRayShouldStopBeforeOwnBlocker()
-{
+void MaskGenTest::RookRayShouldStopBeforeOwnBlocker() {
     // FEN: white rook a1 (0), white knight a3 (16)
     Position pos("8/8/8/8/8/N7/8/R7", Position::NONE,
                  false, false, false, false, 0);
@@ -40,8 +38,7 @@ void MaskGenTest::RookRayShouldStopBeforeOwnBlocker()
 /*──────────────────── Bishop capture ray ───────────────*/
 
 /* 3. bishop c1, enemy pawn e3 ➜ e3 capturable and ray stops */
-void MaskGenTest::BishopRayShouldIncludeCaptureSquare()
-{
+void MaskGenTest::BishopRayShouldIncludeCaptureSquare() {
     Pieces pcs("8/8/8/8/8/4p3/8/2B5");   // bishop c1 (2), pawn e3 (20)
     Bitboard mask = PsLegalMaskGen::BishopMask(pcs, 2, Side::White, false);
 
@@ -94,8 +91,7 @@ void MaskGenTest::KnightMaskOnlyCapturesShouldFilter() {
 }
 
 /* 7. pawn_double_push blocked by piece */
-void MaskGenTest::PawnDoublePushShouldRespectBlockers()
-{
+void MaskGenTest::PawnDoublePushShouldRespectBlockers() {
     Pieces pcs("8/8/8/8/8/p7/P7/8");  // black pawn e3 blocks a2 double push
     Bitboard dbl = PsLegalMaskGen::PawnDoublePush(pcs, Side::White);
 
@@ -103,8 +99,7 @@ void MaskGenTest::PawnDoublePushShouldRespectBlockers()
 }
 
 /* 8. pawn_capture_mask include_all_attacks flag */
-void MaskGenTest::PawnCaptureMaskAllAttacksVsLegal()
-{
+void MaskGenTest::PawnCaptureMaskAllAttacksVsLegal() {
     Pieces pcs("8/8/8/8/8/8/2p1P3/8"); // white pawn e2 (12), black pawn c2 (10)
     Bitboard all = PsLegalMaskGen::PawnCaptureMask(pcs, Side::White, true);
     Bitboard legal = PsLegalMaskGen::PawnCaptureMask(pcs, Side::White, false);
@@ -114,8 +109,7 @@ void MaskGenTest::PawnCaptureMaskAllAttacksVsLegal()
 }
 
 /* 9. bishop_mask on empty board equals pre‑computed rays */
-void MaskGenTest::BishopMaskOnEmptyBoardEqualsTable()
-{
+void MaskGenTest::BishopMaskOnEmptyBoardEqualsTable() {
     Pieces pcs("8/8/8/8/8/8/8/2B5");   // bishop c1 (2)
     Bitboard mask = PsLegalMaskGen::BishopMask(pcs, 2, Side::White, false);
 
@@ -127,8 +121,7 @@ void MaskGenTest::BishopMaskOnEmptyBoardEqualsTable()
 }
 
 /* 10. square_in_danger false when no attacks */
-void MaskGenTest::SquareInDangerShouldReturnFalseWhenSafe()
-{
+void MaskGenTest::SquareInDangerShouldReturnFalseWhenSafe() {
     Pieces pcs("8/8/8/8/8/8/8/2K5");   // lone king c1 (2)
     QVERIFY(!PsLegalMaskGen::SquareInDanger(pcs, 2, Side::White));
 }

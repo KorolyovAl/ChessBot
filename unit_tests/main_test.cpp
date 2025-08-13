@@ -6,6 +6,7 @@
 #include "position_test.h"
 #include "mask_gen_test.h"
 #include "legal_move_gen_test.h"
+#include "evaluation_test.h"
 
 #include "legal_move_gen_tester.h"
 
@@ -49,6 +50,12 @@ int main(int argc, char** argv) {
     {
         MaskGenTest masks_test;
         status |= QTest::qExec(&masks_test, argc, argv);
+    }
+
+    {
+        EvaluationTest evaluation_test;
+        status |= QTest::qExec(&evaluation_test, argc, argv);
+
     }
 
     return status;

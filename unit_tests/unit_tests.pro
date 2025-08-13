@@ -17,8 +17,10 @@ SOURCES +=  \
     ../ChessBot/move_generation/ps_legal_move_mask_gen.cpp \
     ../ChessBot/move_generation/move_list.cpp \
     ../ChessBot/move_generation/legal_move_gen.cpp \
+    ../ChessBot/ai_logic/evaluation.cpp \
     \
     bitboard_test.cpp \
+    evaluation_test.cpp \
     legal_move_gen_test.cpp \
     legal_move_gen_tester.cpp \
     main_test.cpp \
@@ -30,6 +32,7 @@ SOURCES +=  \
 
 HEADERS += \
     bitboard_test.h \
+    evaluation_test.h \
     legal_move_gen_test.h \
     legal_move_gen_tester.h \
     mask_gen_test.h \
