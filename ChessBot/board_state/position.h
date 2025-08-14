@@ -67,6 +67,14 @@ public:
     void UndoMove(Move move, const Undo& u);
     uint64_t GetZobristKey() const { return hash_.GetValue(); } // для TT
 
+    struct NullUndo {
+        uint8_t  EnPassantBefore = NONE;
+        uint16_t MoveCounterBefore = 0;
+    };
+
+    void ApplyNullMove(NullUndo& u);
+    void UndoNullMove(const NullUndo& u);
+
 private:
     friend class PositionTest;
 

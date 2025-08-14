@@ -18,6 +18,10 @@ SOURCES +=  \
     ../ChessBot/move_generation/move_list.cpp \
     ../ChessBot/move_generation/legal_move_gen.cpp \
     ../ChessBot/ai_logic/evaluation.cpp \
+    ../ChessBot/ai_logic/move_ordering.cpp \
+    ../ChessBot/ai_logic/static_exchange_evaluation.cpp \
+    ../ChessBot/ai_logic/search.cpp \
+    ../ChessBot/ai_logic/transposition_table.cpp \
     \
     bitboard_test.cpp \
     evaluation_test.cpp \
@@ -25,9 +29,13 @@ SOURCES +=  \
     legal_move_gen_tester.cpp \
     main_test.cpp \
     mask_gen_test.cpp \
+    move_ordering_test.cpp \
     move_test.cpp \
     pieces_test.cpp \
     position_test.cpp \
+    search_engine_test.cpp \
+    see_test.cpp \
+    transposition_table_test.cpp \
     zobrist_hash_test.cpp
 
 HEADERS += \
@@ -36,7 +44,11 @@ HEADERS += \
     legal_move_gen_test.h \
     legal_move_gen_tester.h \
     mask_gen_test.h \
+    move_ordering_test.h \
     move_test.h \
     pieces_test.h \
     position_test.h \
+    search_engine_test.h \
+    see_test.h \
+    transposition_table_test.h \
     zobrist_hash_test.h

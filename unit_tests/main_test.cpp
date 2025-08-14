@@ -7,6 +7,10 @@
 #include "mask_gen_test.h"
 #include "legal_move_gen_test.h"
 #include "evaluation_test.h"
+#include "search_engine_test.h"
+#include "transposition_table_test.h"
+#include "move_ordering_test.h"
+#include "see_test.h"
 
 #include "legal_move_gen_tester.h"
 
@@ -56,6 +60,26 @@ int main(int argc, char** argv) {
         EvaluationTest evaluation_test;
         status |= QTest::qExec(&evaluation_test, argc, argv);
 
+    }
+
+    {
+        SearchEngineTest t;
+        status |= QTest::qExec(&t, argc, argv);
+    }
+
+    {
+        TranspositionTableTest t;
+        status |= QTest::qExec(&t, argc, argv);
+    }
+
+    {
+        MoveOrderingTest t;
+        status |= QTest::qExec(&t, argc, argv);
+    }
+
+    {
+        SeeTest t;
+        status |= QTest::qExec(&t, argc, argv);
     }
 
     return status;

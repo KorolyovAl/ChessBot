@@ -3,112 +3,103 @@
 #include "pst_tables.h"
 #include "../move_generation/ps_legal_move_mask_gen.h"
 #include "../move_generation/king_masks.h"
+#include "piece_values.h"
 
 namespace {
 
-// Piece material values (centipawns)
-constexpr int PIECE_VALUE[] = {
-    /*Pawn*/   100,
-    /*Knight*/ 320,
-    /*Bishop*/ 330,
-    /*Rook*/   500,
-    /*Queen*/  900,
-    /*King*/     0
-};
+    // Small, safe global bonuses
+    constexpr int kTempoBonus       = 10;
+    constexpr int kBishopPairBonus  = 30;
 
-// Small, safe global bonuses
-constexpr int kTempoBonus       = 10;
-constexpr int kBishopPairBonus  = 30;
+    // Game-phase weights (pawns excluded). Max phase with full set (no pawns) for both sides = 24.
+    constexpr int kPhaseWeightKnight = 1;
+    constexpr int kPhaseWeightBishop = 1;
+    constexpr int kPhaseWeightRook   = 2;
+    constexpr int kPhaseWeightQueen  = 4;
+    constexpr int kMaxPhase          = 24;
 
-// Game-phase weights (pawns excluded). Max phase with full set (no pawns) for both sides = 24.
-constexpr int kPhaseWeightKnight = 1;
-constexpr int kPhaseWeightBishop = 1;
-constexpr int kPhaseWeightRook   = 2;
-constexpr int kPhaseWeightQueen  = 4;
-constexpr int kMaxPhase          = 24;
+    // --- Pawn structure tuning (centipawns) ---
+    constexpr int kIsolatedPawnPenaltyMG = 15;
+    constexpr int kIsolatedPawnPenaltyEG = 10;
 
-// --- Pawn structure tuning (centipawns) ---
-constexpr int kIsolatedPawnPenaltyMG = 15;
-constexpr int kIsolatedPawnPenaltyEG = 10;
+    constexpr int kDoubledPawnPenaltyMG  = 10;
+    constexpr int kDoubledPawnPenaltyEG  = 8;
 
-constexpr int kDoubledPawnPenaltyMG  = 10;
-constexpr int kDoubledPawnPenaltyEG  = 8;
+    // Passed-pawn bonuses by rank progress (0..7).
+    // For White we read ranks as-is; for Black we mirror progress (7 - rank).
+    constexpr int kPassedPawnBonusMG[8] = { 0, 5, 10, 20, 35, 60, 90, 0 };
+    constexpr int kPassedPawnBonusEG[8] = { 0, 8, 15, 30, 50, 80, 120, 0 };
 
-// Passed-pawn bonuses by rank progress (0..7).
-// For White we read ranks as-is; for Black we mirror progress (7 - rank).
-constexpr int kPassedPawnBonusMG[8] = { 0, 5, 10, 20, 35, 60, 90, 0 };
-constexpr int kPassedPawnBonusEG[8] = { 0, 8, 15, 30, 50, 80, 120, 0 };
+    // Column (file) masks A..H
+    inline constexpr Bitboard kColumnMask[8] = {
+        0x0101010101010101ULL, 0x0202020202020202ULL, 0x0404040404040404ULL, 0x0808080808080808ULL,
+        0x1010101010101010ULL, 0x2020202020202020ULL, 0x4040404040404040ULL, 0x8080808080808080ULL
+    };
 
-// Column (file) masks A..H
-inline constexpr Bitboard kColumnMask[8] = {
-    0x0101010101010101ULL, 0x0202020202020202ULL, 0x0404040404040404ULL, 0x0808080808080808ULL,
-    0x1010101010101010ULL, 0x2020202020202020ULL, 0x4040404040404040ULL, 0x8080808080808080ULL
-};
-
-// Board helpers (0..7)
-inline int ColumnOf(uint8_t sq) {
-    const int col = static_cast<int>(sq & 7);
-    return col;
-}
-inline int RankOf(uint8_t sq) {
-    const int rank = static_cast<int>(sq >> 3);
-    return rank;
-}
-
-// Mirror by ranks (a1 <-> a8 etc.) assuming a1 = 0 indexing
-inline uint8_t MirrorSquare(uint8_t sq) {
-    const uint8_t mirrored = static_cast<uint8_t>(sq ^ 56);
-    return mirrored;
-}
-
-// PST lookups (MG/EG), White as-is, Black mirrored by ranks
-inline int16_t PST_MG_At(PieceType pt, uint8_t sq, Side side) {
-    const uint8_t idx = (side == Side::White) ? sq : MirrorSquare(sq);
-    switch (pt) {
-    case PieceType::Pawn:   return PST_MG_Pawn[idx];
-    case PieceType::Knight: return PST_MG_Knight[idx];
-    case PieceType::Bishop: return PST_MG_Bishop[idx];
-    case PieceType::Rook:   return PST_MG_Rook[idx];
-    case PieceType::Queen:  return PST_MG_Queen[idx];
-    case PieceType::King:   return PST_MG_King[idx];
-    default:                return 0;
+    // Board helpers (0..7)
+    inline int ColumnOf(uint8_t sq) {
+        const int col = static_cast<int>(sq & 7);
+        return col;
     }
-}
-inline int16_t PST_EG_At(PieceType pt, uint8_t sq, Side side) {
-    const uint8_t idx = (side == Side::White) ? sq : MirrorSquare(sq);
-    switch (pt) {
-    case PieceType::Pawn:   return PST_EG_Pawn[idx];
-    case PieceType::Knight: return PST_EG_Knight[idx];
-    case PieceType::Bishop: return PST_EG_Bishop[idx];
-    case PieceType::Rook:   return PST_EG_Rook[idx];
-    case PieceType::Queen:  return PST_EG_Queen[idx];
-    case PieceType::King:   return PST_EG_King[idx];
-    default:                return 0;
+    inline int RankOf(uint8_t sq) {
+        const int rank = static_cast<int>(sq >> 3);
+        return rank;
     }
-}
 
-// --- Mobility weights (centipawns per reachable square) ---
-// In MG we exclude king mobility (king activity discouraged in middlegame via PST MG).
-constexpr int kMobKnightMG = 4;
-constexpr int kMobBishopMG = 4;
-constexpr int kMobRookMG   = 2;
-constexpr int kMobQueenMG  = 1;
+    // Mirror by ranks (a1 <-> a8 etc.) assuming a1 = 0 indexing
+    inline uint8_t MirrorSquare(uint8_t sq) {
+        const uint8_t mirrored = static_cast<uint8_t>(sq ^ 56);
+        return mirrored;
+    }
 
-// In EG mobility generally matters more (including king activity).
-constexpr int kMobKnightEG = 5;
-constexpr int kMobBishopEG = 5;
-constexpr int kMobRookEG   = 3;
-constexpr int kMobQueenEG  = 2;
-constexpr int kMobKingEG   = 2;
+    // PST lookups (MG/EG), White as-is, Black mirrored by ranks
+    inline int16_t PST_MG_At(PieceType pt, uint8_t sq, Side side) {
+        const uint8_t idx = (side == Side::White) ? sq : MirrorSquare(sq);
+        switch (pt) {
+        case PieceType::Pawn:   return PST_MG_Pawn[idx];
+        case PieceType::Knight: return PST_MG_Knight[idx];
+        case PieceType::Bishop: return PST_MG_Bishop[idx];
+        case PieceType::Rook:   return PST_MG_Rook[idx];
+        case PieceType::Queen:  return PST_MG_Queen[idx];
+        case PieceType::King:   return PST_MG_King[idx];
+        default:                return 0;
+        }
+    }
+    inline int16_t PST_EG_At(PieceType pt, uint8_t sq, Side side) {
+        const uint8_t idx = (side == Side::White) ? sq : MirrorSquare(sq);
+        switch (pt) {
+        case PieceType::Pawn:   return PST_EG_Pawn[idx];
+        case PieceType::Knight: return PST_EG_Knight[idx];
+        case PieceType::Bishop: return PST_EG_Bishop[idx];
+        case PieceType::Rook:   return PST_EG_Rook[idx];
+        case PieceType::Queen:  return PST_EG_Queen[idx];
+        case PieceType::King:   return PST_EG_King[idx];
+        default:                return 0;
+        }
+    }
 
-// --- King Safety (MG) ---
-// Pawn shield directly in front of the king (two ranks ahead across three columns).
-constexpr int kShieldMissingRank1 = 12;   // missing pawn on first shield rank
-constexpr int kShieldMissingRank2 = 8;    // missing pawn on second shield rank
+    // --- Mobility weights (centipawns per reachable square) ---
+    // In MG we exclude king mobility (king activity discouraged in middlegame via PST MG).
+    constexpr int kMobKnightMG = 4;
+    constexpr int kMobBishopMG = 4;
+    constexpr int kMobRookMG   = 2;
+    constexpr int kMobQueenMG  = 1;
 
-// Open/half-open columns near the king (king column +/- 1)
-constexpr int kNearColumnOpenPenalty     = 6;   // open column near king
-constexpr int kNearColumnHalfOpenPenalty = 10;  // half-open (opponent's) column near king
+    // In EG mobility generally matters more (including king activity).
+    constexpr int kMobKnightEG = 5;
+    constexpr int kMobBishopEG = 5;
+    constexpr int kMobRookEG   = 3;
+    constexpr int kMobQueenEG  = 2;
+    constexpr int kMobKingEG   = 2;
+
+    // --- King Safety (MG) ---
+    // Pawn shield directly in front of the king (two ranks ahead across three columns).
+    constexpr int kShieldMissingRank1 = 12;   // missing pawn on first shield rank
+    constexpr int kShieldMissingRank2 = 8;    // missing pawn on second shield rank
+
+    // Open/half-open columns near the king (king column +/- 1)
+    constexpr int kNearColumnOpenPenalty     = 6;   // open column near king
+    constexpr int kNearColumnHalfOpenPenalty = 10;  // half-open (opponent's) column near king
 } // namespace
 
 // === Entry point ===
@@ -165,7 +156,7 @@ int Evaluation::ComputeMaterialScore(const Pieces& pieces) {
         const int black_count = static_cast<int>(BOp::Count_1(black_bb));
         const int diff = white_count - black_count;
 
-        total += diff * PIECE_VALUE[type_index];
+        total += diff * EvalValues::kPieceValueCp[type_index];
     }
 
     return total;

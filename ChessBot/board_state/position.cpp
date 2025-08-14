@@ -45,6 +45,17 @@ void Position::ApplyMove(Move move, Undo& u) {
         return;
     }
 
+    // Снять EP-бит предыдущего хода из хэша, если он был захватываем для текущей стороны
+    if (en_passant_ != NONE) {
+        const Side stm = IsWhiteToMove() ? Side::White : Side::Black;
+        const Bitboard pawns_stm = pieces_.GetPieceBitboard(stm, PieceType::Pawn);
+        const Bitboard att_stm   = PawnMasks::kAttack[static_cast<int>(stm)][en_passant_];
+
+        if ((pawns_stm & att_stm) != 0ULL) {
+            hash_.InvertEnPassantFile(en_passant_ % 8);
+        }
+    }
+
     RemovePiece(move.GetFrom(), move.GetAttackerType(), move.GetAttackerSide());
     AddPiece(move.GetTo(),   move.GetAttackerType(), move.GetAttackerSide());
 
@@ -60,9 +71,19 @@ void Position::ApplyMove(Move move, Undo& u) {
         case Move::Flag::Default:
             break;
 
-        case Move::Flag::PawnLongMove:
-            SetEnPassantSquare((move.GetFrom() + move.GetTo()) / 2);
+        case Move::Flag::PawnLongMove: {
+            en_passant_ = static_cast<uint8_t>((move.GetFrom() + move.GetTo()) / 2); // всегда ставим EP-клетку
+
+            // EP-бит в хэш добавляем только если у следующей стороны есть бьющая пешка
+            const Side next = IsWhiteToMove() ? Side::Black : Side::White;
+            const Bitboard pawns_next = pieces_.GetPieceBitboard(next, PieceType::Pawn);
+            const Bitboard att_next   = PawnMasks::kAttack[static_cast<int>(next)][en_passant_];
+
+            if ((pawns_next & att_next) != 0ULL) {
+                hash_.InvertEnPassantFile(en_passant_ % 8);
+            }
             break;
+        }
 
         case Move::Flag::EnPassantCapture: {
             Side captured_side = static_cast<Side>(move.GetAttackerSide()) == Side::White ? Side::Black : Side::White;
@@ -126,7 +147,7 @@ void Position::ApplyMove(Move move, Undo& u) {
     pieces_.UpdateBitboard();
 
     if (move.GetFlag() != Move::Flag::PawnLongMove) {
-        SetEnPassantSquare(Position::NONE);
+        en_passant_ = Position::NONE; // хэш уже очищен в начале функции
     }
 
     switch (move.GetFrom()) {
@@ -152,6 +173,26 @@ void Position::ApplyMove(Move move, Undo& u) {
             break;
     }
 
+        if (move.GetDefenderType() == static_cast<uint8_t>(PieceType::Rook)) {
+            switch (move.GetTo()) {
+                case 0:
+                    DisableCastling(Side::White, true);
+                    break;   // a1 → снимаем у белых Q
+                case 7:
+                    DisableCastling(Side::White, false);
+                    break;   // h1 → снимаем у белых K
+                case 56:
+                    DisableCastling(Side::Black, true);
+                    break;   // a8 → снимаем у чёрных q
+                case 63:
+                    DisableCastling(Side::Black, false);
+                    break;   // h8 → снимаем у чёрных k
+                default:
+                    break;
+            }
+        }
+
+
     UpdateMoveCounter();
     UpdateFiftyMovesCounter(move.GetAttackerType() == 0 || move.GetDefenderType() != Move::None);
 
@@ -170,6 +211,16 @@ void Position::ApplyMove(Move move) {
 }
 
 void Position::UndoMove(Move move, const Undo& u) {
+    if (en_passant_ != NONE) {
+        const Side stm = IsWhiteToMove() ? Side::White : Side::Black;
+        const Bitboard pawns_stm = pieces_.GetPieceBitboard(stm, PieceType::Pawn);
+        const Bitboard att_stm   = PawnMasks::kAttack[static_cast<int>(stm)][en_passant_];
+        if ((pawns_stm & att_stm) != 0ULL) {
+            hash_.InvertEnPassantFile(en_passant_ % 8);
+        }
+        en_passant_ = NONE;
+    }
+
     hash_.InvertMove();
 
     // откат спец-ходов
@@ -217,8 +268,15 @@ void Position::UndoMove(Move move, const Undo& u) {
     RemovePiece(move.GetTo(), move.GetAttackerType(), move.GetAttackerSide());
     AddPiece(move.GetFrom(), move.GetAttackerType(), move.GetAttackerSide());
 
-    // восстановить EP
-    SetEnPassantSquare(u.EnPassantBefore);
+    en_passant_ = u.EnPassantBefore;
+    if (en_passant_ != NONE) {
+        const Side stm_prev = IsWhiteToMove() ? Side::White : Side::Black;
+        const Bitboard pawns_prev = pieces_.GetPieceBitboard(stm_prev, PieceType::Pawn);
+        const Bitboard att_prev   = PawnMasks::kAttack[static_cast<int>(stm_prev)][en_passant_];
+        if ((pawns_prev & att_prev) != 0ULL) {
+            hash_.InvertEnPassantFile(en_passant_ % 8);
+        }
+    }
 
     // восстановить рокировки (+согласовать хэш ключи)
     if (white_long_castling_ != u.WhiteLongBefore) {
@@ -242,6 +300,26 @@ void Position::UndoMove(Move move, const Undo& u) {
 
     pieces_.UpdateBitboard();
 }
+
+void Position::ApplyNullMove(NullUndo& u) {
+    u.EnPassantBefore   = en_passant_;
+    u.MoveCounterBefore = move_counter_;
+
+    if (en_passant_ != NONE) {
+        hash_.InvertEnPassantFile(en_passant_ % 8);
+        en_passant_ = NONE;
+    }
+
+    UpdateMoveCounter();
+    hash_.InvertMove();
+}
+
+void Position::UndoNullMove(const NullUndo& u) {
+    hash_.InvertMove();
+    move_counter_ = u.MoveCounterBefore;
+    SetEnPassantSquare(u.EnPassantBefore);
+}
+
 
 void Position::AddPiece(uint8_t square, uint8_t type, uint8_t side) {
     Bitboard bb = pieces_.GetPieceBitboard(static_cast<Side>(side), static_cast<PieceType>(type));

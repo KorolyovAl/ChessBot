@@ -104,4 +104,6 @@ private:
     int history_[2][64][64]{};       // SimpleMoves history (side, from, to)
 
     int lmr_base_index_ = 4;         // start LMR from the 4th SimpleMove
+
+    friend class SearchEngineTest;
 };

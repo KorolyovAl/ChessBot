@@ -2,11 +2,13 @@
 #include <algorithm>
 
 #include "search.h"
+#include "../board_state/bitboard.h"
 #include "../board_state/pieces.h"
 #include "../move_generation/move_list.h"
 #include "../move_generation/legal_move_gen.h"
 #include "evaluation.h"
 #include "move_ordering.h"
+#include "../move_generation/ps_legal_move_mask_gen.h"
 
 namespace {
     constexpr int kInfinity = 32000;
@@ -147,18 +149,22 @@ int SearchEngine::Quiescence(Position& pos, int alpha, int beta, int halfmove, P
     ++nodes_;
 
     // — Stand-pat (static eval leaf)
-    const int stand_pat = Evaluation::Evaluate(pos);
-    if (stand_pat >= beta) {
-        return stand_pat;
-    }
-    if (stand_pat > alpha) {
-        alpha = stand_pat;
+    const Side stm = pos.IsWhiteToMove() ? Side::White : Side::Black;
+    const uint8_t ksq = BOp::BitScanForward(pos.GetPieces().GetPieceBitboard(stm, PieceType::King));
+    const bool in_check = PsLegalMaskGen::SquareInDanger(pos.GetPieces(), ksq, stm);
+
+    if (!in_check) {
+        const int stand_pat = Evaluation::Evaluate(pos);
+        if (stand_pat >= beta) {
+            return stand_pat;
+        }
+        if (stand_pat > alpha) {
+            alpha = stand_pat;
+        }
     }
 
-    // — Generate captures only (checks optional later)
-    const Side stm = pos.IsWhiteToMove() ? Side::White : Side::Black;
     MoveList ml;
-    LegalMoveGen::Generate(pos, stm, ml, /*only_captures=*/true);
+    LegalMoveGen::Generate(pos, stm, ml, /*only_captures=*/!in_check);
 
     std::vector<Move> moves;
     moves.reserve(ml.GetSize());
@@ -171,8 +177,6 @@ int SearchEngine::Quiescence(Position& pos, int alpha, int beta, int halfmove, P
     qctx.tt_move = Move{};
     qctx.cutoff1 = 0;
     qctx.cutoff2 = 0;
-    qctx.history = nullptr;
-    qctx.side_to_move = stm;
 
     std::sort(moves.begin(), moves.end(), [&](const Move& a, const Move& b) {
         int sa = MoveOrdering::Score(a, pos.GetPieces(), qctx);
@@ -241,6 +245,35 @@ int SearchEngine::AlphaBeta(Position& pos, int depth, int alpha, int beta, int h
         const int q = Quiescence(pos, alpha - 1, alpha, halfmove, qpv);
         if (q <= alpha) {
             return q;
+        }
+    }
+
+    {
+        const Side stm = pos.IsWhiteToMove() ? Side::White : Side::Black;
+        const uint8_t ksq = BOp::BitScanForward(pos.GetPieces().GetPieceBitboard(stm, PieceType::King));
+        const bool in_check = PsLegalMaskGen::SquareInDanger(pos.GetPieces(), ksq, stm);
+
+        if (!in_check && depth >= 3) {
+            Bitboard non_pawn =
+                pos.GetPieces().GetPieceBitboard(stm, PieceType::Knight) |
+                pos.GetPieces().GetPieceBitboard(stm, PieceType::Bishop) |
+                pos.GetPieces().GetPieceBitboard(stm, PieceType::Rook)   |
+                pos.GetPieces().GetPieceBitboard(stm, PieceType::Queen);
+
+            if (non_pawn) {
+                Position::NullUndo nu{};
+                pos.ApplyNullMove(nu);
+
+                PvLine dummy{};
+                const int R = 2;
+                const int score = -AlphaBeta(pos, depth - 1 - R, -beta, -beta + 1, halfmove + 1, dummy);
+
+                pos.UndoNullMove(nu);
+
+                if (score >= beta) {
+                    return score;
+                }
+            }
         }
     }
 
