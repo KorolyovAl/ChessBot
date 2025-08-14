@@ -21,7 +21,7 @@ public:
         uint8_t  best_attacker_type = 255;
         uint8_t  best_attacker_side = 255;
         uint8_t  best_flag = 0;
-        int8_t   depth = -1;              // ply
+        int8_t   depth = -1;              // halfmove
         Bound    bound = Bound::Exact;
     };
 

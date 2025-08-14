@@ -12,6 +12,7 @@ SOURCES += \
     ai_logic/evaluation.cpp \
     ai_logic/move_ordering.cpp \
     ai_logic/search.cpp \
+    ai_logic/static_exchange_evaluation.cpp \
     ai_logic/transposition_table.cpp \
     board_state/bitboard.cpp \
     board_state/move.cpp \
@@ -28,8 +29,10 @@ SOURCES += \
 HEADERS += \
     ai_logic/evaluation.h \
     ai_logic/move_ordering.h \
+    ai_logic/piece_values.h \
     ai_logic/pst_tables.h \
     ai_logic/search.h \
+    ai_logic/static_exchange_evaluation.h \
     ai_logic/transposition_table.h \
     board_state/bitboard.h \
     board_state/move.h \

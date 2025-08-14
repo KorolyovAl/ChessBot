@@ -1,4 +1,5 @@
 #include "position.h"
+#include "../move_generation/pawn_attack_masks.h"
 
 #include <iostream>
 #include <cmath>
@@ -55,67 +56,71 @@ void Position::ApplyMove(Move move, Undo& u) {
     }
 
     switch (move.GetFlag()) {
-    case Move::Flag::Capture:
-    case Move::Flag::Default:
-        break;
+        case Move::Flag::Capture:
+        case Move::Flag::Default:
+            break;
 
-    case Move::Flag::PawnLongMove:
-        SetEnPassantSquare((move.GetFrom() + move.GetTo()) / 2);
-        break;
+        case Move::Flag::PawnLongMove:
+            SetEnPassantSquare((move.GetFrom() + move.GetTo()) / 2);
+            break;
 
-    case Move::Flag::EnPassantCapture: {
-        Side captured_side = static_cast<Side>(move.GetAttackerSide()) == Side::White ? Side::Black : Side::White;
-        int captured_sq = move.GetTo() + (static_cast<Side>(move.GetAttackerSide()) == Side::White ? -8 : 8);
-        u.CapturedType   = static_cast<uint8_t>(PieceType::Pawn);
-        u.CapturedSide   = static_cast<uint8_t>(captured_side);
-        u.CapturedSquare = static_cast<uint8_t>(captured_sq);
-        RemovePiece(captured_sq, static_cast<uint8_t>(PieceType::Pawn), static_cast<uint8_t>(captured_side));
-        break;
-    }
+        case Move::Flag::EnPassantCapture: {
+            Side captured_side = static_cast<Side>(move.GetAttackerSide()) == Side::White ? Side::Black : Side::White;
+            int captured_sq = move.GetTo() + (static_cast<Side>(move.GetAttackerSide()) == Side::White ? -8 : 8);
+            u.CapturedType   = static_cast<uint8_t>(PieceType::Pawn);
+            u.CapturedSide   = static_cast<uint8_t>(captured_side);
+            u.CapturedSquare = static_cast<uint8_t>(captured_sq);
+            RemovePiece(captured_sq, static_cast<uint8_t>(PieceType::Pawn), static_cast<uint8_t>(captured_side));
+            break;
+        }
 
-    case Move::Flag::WhiteShortCastling:
-        u.RookFrom = 7;  u.RookTo = 5;
-        RemovePiece(7, static_cast<uint8_t>(PieceType::Rook), static_cast<uint8_t>(Side::White));
-        AddPiece(5, static_cast<uint8_t>(PieceType::Rook), static_cast<uint8_t>(Side::White));
-        break;
+        case Move::Flag::WhiteShortCastling:
+            u.RookFrom = 7;
+            u.RookTo = 5;
+            RemovePiece(7, static_cast<uint8_t>(PieceType::Rook), static_cast<uint8_t>(Side::White));
+            AddPiece(5, static_cast<uint8_t>(PieceType::Rook), static_cast<uint8_t>(Side::White));
+            break;
 
-    case Move::Flag::WhiteLongCastling:
-        u.RookFrom = 0;  u.RookTo = 3;
-        RemovePiece(0, static_cast<uint8_t>(PieceType::Rook), static_cast<uint8_t>(Side::White));
-        AddPiece(3, static_cast<uint8_t>(PieceType::Rook), static_cast<uint8_t>(Side::White));
-        break;
+        case Move::Flag::WhiteLongCastling:
+            u.RookFrom = 0;
+            u.RookTo = 3;
+            RemovePiece(0, static_cast<uint8_t>(PieceType::Rook), static_cast<uint8_t>(Side::White));
+            AddPiece(3, static_cast<uint8_t>(PieceType::Rook), static_cast<uint8_t>(Side::White));
+            break;
 
-    case Move::Flag::BlackShortCastling:
-        u.RookFrom = 63; u.RookTo = 61;
-        RemovePiece(63, static_cast<uint8_t>(PieceType::Rook), static_cast<uint8_t>(Side::Black));
-        AddPiece(61, static_cast<uint8_t>(PieceType::Rook), static_cast<uint8_t>(Side::Black));
-        break;
+        case Move::Flag::BlackShortCastling:
+            u.RookFrom = 63;
+            u.RookTo = 61;
+            RemovePiece(63, static_cast<uint8_t>(PieceType::Rook), static_cast<uint8_t>(Side::Black));
+            AddPiece(61, static_cast<uint8_t>(PieceType::Rook), static_cast<uint8_t>(Side::Black));
+            break;
 
-    case Move::Flag::BlackLongCastling:
-        u.RookFrom = 56; u.RookTo = 59;
-        RemovePiece(56, static_cast<uint8_t>(PieceType::Rook), static_cast<uint8_t>(Side::Black));
-        AddPiece(59, static_cast<uint8_t>(PieceType::Rook), static_cast<uint8_t>(Side::Black));
-        break;
+        case Move::Flag::BlackLongCastling:
+            u.RookFrom = 56;
+            u.RookTo = 59;
+            RemovePiece(56, static_cast<uint8_t>(PieceType::Rook), static_cast<uint8_t>(Side::Black));
+            AddPiece(59, static_cast<uint8_t>(PieceType::Rook), static_cast<uint8_t>(Side::Black));
+            break;
 
-    case Move::Flag::PromoteToBishop:
-        RemovePiece(move.GetTo(), static_cast<uint8_t>(PieceType::Pawn), move.GetAttackerSide());
-        AddPiece(move.GetTo(), static_cast<uint8_t>(PieceType::Bishop), move.GetAttackerSide());
-        break;
+        case Move::Flag::PromoteToBishop:
+            RemovePiece(move.GetTo(), static_cast<uint8_t>(PieceType::Pawn), move.GetAttackerSide());
+            AddPiece(move.GetTo(), static_cast<uint8_t>(PieceType::Bishop), move.GetAttackerSide());
+            break;
 
-    case Move::Flag::PromoteToKnight:
-        RemovePiece(move.GetTo(), static_cast<uint8_t>(PieceType::Pawn), move.GetAttackerSide());
-        AddPiece(move.GetTo(), static_cast<uint8_t>(PieceType::Knight), move.GetAttackerSide());
-        break;
+        case Move::Flag::PromoteToKnight:
+            RemovePiece(move.GetTo(), static_cast<uint8_t>(PieceType::Pawn), move.GetAttackerSide());
+            AddPiece(move.GetTo(), static_cast<uint8_t>(PieceType::Knight), move.GetAttackerSide());
+            break;
 
-    case Move::Flag::PromoteToRook:
-        RemovePiece(move.GetTo(), static_cast<uint8_t>(PieceType::Pawn), move.GetAttackerSide());
-        AddPiece(move.GetTo(), static_cast<uint8_t>(PieceType::Rook), move.GetAttackerSide());
-        break;
+        case Move::Flag::PromoteToRook:
+            RemovePiece(move.GetTo(), static_cast<uint8_t>(PieceType::Pawn), move.GetAttackerSide());
+            AddPiece(move.GetTo(), static_cast<uint8_t>(PieceType::Rook), move.GetAttackerSide());
+            break;
 
-    case Move::Flag::PromoteToQueen:
-        RemovePiece(move.GetTo(), static_cast<uint8_t>(PieceType::Pawn), move.GetAttackerSide());
-        AddPiece(move.GetTo(), static_cast<uint8_t>(PieceType::Queen), move.GetAttackerSide());
-        break;
+        case Move::Flag::PromoteToQueen:
+            RemovePiece(move.GetTo(), static_cast<uint8_t>(PieceType::Pawn), move.GetAttackerSide());
+            AddPiece(move.GetTo(), static_cast<uint8_t>(PieceType::Queen), move.GetAttackerSide());
+            break;
     }
 
     pieces_.UpdateBitboard();
@@ -125,12 +130,26 @@ void Position::ApplyMove(Move move, Undo& u) {
     }
 
     switch (move.GetFrom()) {
-    case 0:  DisableCastling(Side::White, true);  break;
-    case 4:  DisableCastling(Side::White, true);  DisableCastling(Side::White, false); break;
-    case 7:  DisableCastling(Side::White, false); break;
-    case 56: DisableCastling(Side::Black, true);  break;
-    case 60: DisableCastling(Side::Black, true);  DisableCastling(Side::Black, false); break;
-    case 63: DisableCastling(Side::Black, false); break;
+        case 0:
+            DisableCastling(Side::White, true);
+            break;
+        case 4:
+            DisableCastling(Side::White, true);
+            DisableCastling(Side::White, false);
+            break;
+        case 7:
+            DisableCastling(Side::White, false);
+            break;
+        case 56:
+            DisableCastling(Side::Black, true);
+            break;
+        case 60:
+            DisableCastling(Side::Black, true);
+            DisableCastling(Side::Black, false);
+            break;
+        case 63:
+            DisableCastling(Side::Black, false);
+            break;
     }
 
     UpdateMoveCounter();
@@ -195,20 +214,31 @@ void Position::UndoMove(Move move, const Undo& u) {
         AddPiece(u.CapturedSquare, u.CapturedType, u.CapturedSide);
     }
 
-    RemovePiece(move.GetTo(),   move.GetAttackerType(), move.GetAttackerSide());
-    AddPiece(move.GetFrom(),    move.GetAttackerType(), move.GetAttackerSide());
+    RemovePiece(move.GetTo(), move.GetAttackerType(), move.GetAttackerSide());
+    AddPiece(move.GetFrom(), move.GetAttackerType(), move.GetAttackerSide());
 
     // восстановить EP
     SetEnPassantSquare(u.EnPassantBefore);
 
     // восстановить рокировки (+согласовать хэш ключи)
-    if (white_long_castling_ != u.WhiteLongBefore)  hash_.InvertWhiteLongCastling(),  white_long_castling_  = u.WhiteLongBefore;
-    if (white_short_castling_!= u.WhiteShortBefore) hash_.InvertWhiteShortCastling(), white_short_castling_ = u.WhiteShortBefore;
-    if (black_long_castling_ != u.BlackLongBefore)  hash_.InvertBlackLongCastling(),  black_long_castling_  = u.BlackLongBefore;
-    if (black_short_castling_!= u.BlackShortBefore) hash_.InvertBlackShortCastling(), black_short_castling_ = u.BlackShortBefore;
+    if (white_long_castling_ != u.WhiteLongBefore) {
+        hash_.InvertWhiteLongCastling(), white_long_castling_ = u.WhiteLongBefore;
+    }
+
+    if (white_short_castling_!= u.WhiteShortBefore) {
+        hash_.InvertWhiteShortCastling(), white_short_castling_ = u.WhiteShortBefore;
+    }
+
+    if (black_long_castling_ != u.BlackLongBefore)  {
+        hash_.InvertBlackLongCastling(), black_long_castling_ = u.BlackLongBefore;
+    }
+
+    if (black_short_castling_!= u.BlackShortBefore) {
+        hash_.InvertBlackShortCastling(), black_short_castling_ = u.BlackShortBefore;
+    }
 
     fifty_move_counter_ = u.FiftyBefore;
-    move_counter_       = u.MoveCounterBefore;
+    move_counter_ = u.MoveCounterBefore;
 
     pieces_.UpdateBitboard();
 }
@@ -246,7 +276,8 @@ void Position::DisableCastling(Side side, bool long_castle) {
         if (long_castle && white_long_castling_) {
             white_long_castling_ = false;
             hash_.InvertWhiteLongCastling();
-        } else if (!long_castle && white_short_castling_) {
+        }
+        else if (!long_castle && white_short_castling_) {
             white_short_castling_ = false;
             hash_.InvertWhiteShortCastling();
         }
@@ -254,7 +285,8 @@ void Position::DisableCastling(Side side, bool long_castle) {
         if (long_castle && black_long_castling_) {
             black_long_castling_ = false;
             hash_.InvertBlackLongCastling();
-        } else if (!long_castle && black_short_castling_) {
+        }
+        else if (!long_castle && black_short_castling_) {
             black_short_castling_ = false;
             hash_.InvertBlackShortCastling();
         }
