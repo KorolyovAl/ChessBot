@@ -28,11 +28,19 @@ public:
     uint8_t GetSize() const;
 
     // Iterators for range-based for
-    auto begin() { return moves_.begin(); }
-    auto end()   { return moves_.begin() + size_; }
+    auto begin() {
+        return moves_.begin();
+    }
+    auto end()   {
+        return moves_.begin() + size_;
+    }
 
-    auto begin() const { return moves_.begin(); }
-    auto end()   const { return moves_.begin() + size_; }
+    auto begin() const {
+        return moves_.begin();
+    }
+    auto end()   const {
+        return moves_.begin() + size_;
+    }
 
 private:
     std::array<Move, 218> moves_{};  // Maximum legal move count in chess
