@@ -29,7 +29,7 @@ void SearchEngineTest::PV_ShouldBeLegalSequence() {
     SearchEngine engine(tt);
 
     SearchLimits lim;
-    lim.max_depth = 4;
+    lim.max_depth = 10;
     lim.nodes_limit = 0;
 
     const SearchResult res = engine.Search(pos, lim);

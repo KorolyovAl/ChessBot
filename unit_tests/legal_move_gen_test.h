@@ -20,6 +20,6 @@ private slots:
     void Perft_EnPassant();
     void Perft_Endgame();
 
-    void Perft_StartPos_Divide4_Print();
+    //void Perft_StartPos_Divide4_Print();
     void Debug_Divide_Position2_d4();
 };

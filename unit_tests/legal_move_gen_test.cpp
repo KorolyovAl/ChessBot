@@ -165,35 +165,35 @@ void LegalMoveGenTest::Perft_Endgame() {
     QCOMPARE(Perft2(pos, Side::White), 191ull);
 }
 
-// Временный отладочный тест (при желании сделай QSKIP внутри)
-void LegalMoveGenTest::Perft_StartPos_Divide4_Print() {
-    Position pos("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R",
-                 Position::NONE, true,true,false,false, 0);
-    MoveList ml;
-    LegalMoveGen::Generate(pos, Side::White, ml, /*only_captures=*/false);
+// // Временный отладочный тест
+// void LegalMoveGenTest::Perft_StartPos_Divide4_Print() {
+//     Position pos("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R",
+//                  Position::NONE, true,true,false,false, 0);
+//     MoveList ml;
+//     LegalMoveGen::Generate(pos, Side::White, ml, /*only_captures=*/false);
 
-    // чтобы сравнивать аккуратно — отсортируем по строке хода
-    struct Item { QString m; uint64_t n; };
-    QVector<Item> items;
-    items.reserve(ml.GetSize());
+//     // чтобы сравнивать аккуратно — отсортируем по строке хода
+//     struct Item { QString m; uint64_t n; };
+//     QVector<Item> items;
+//     items.reserve(ml.GetSize());
 
-    for (uint32_t i=0;i<ml.GetSize();++i){
-        Position::Undo u{};
-        pos.ApplyMove(ml[i], u);
-        uint64_t n = PerftCount(pos, Side::Black, 3); // итого depth=4
-        pos.UndoMove(ml[i], u);
-        items.push_back({MoveStr(ml[i]), n});
-    }
-    std::sort(items.begin(), items.end(), [](const Item&a,const Item&b){ return a.m<b.m; });
-    uint64_t total=0;
-    for (auto& it: items){
-        qDebug() << it.m << ":" << it.n;
-        total += it.n;
-    }
-    qDebug() << "TOTAL:" << total;
-    // Сверяем общую сумму тоже, чтобы не ошибиться руками
-    QCOMPARE(total, 2103487ull);
-}
+//     for (uint32_t i=0;i<ml.GetSize();++i){
+//         Position::Undo u{};
+//         pos.ApplyMove(ml[i], u);
+//         uint64_t n = PerftCount(pos, Side::Black, 3); // итого depth=4
+//         pos.UndoMove(ml[i], u);
+//         items.push_back({MoveStr(ml[i]), n});
+//     }
+//     std::sort(items.begin(), items.end(), [](const Item&a,const Item&b){ return a.m<b.m; });
+//     uint64_t total=0;
+//     for (auto& it: items){
+//         qDebug() << it.m << ":" << it.n;
+//         total += it.n;
+//     }
+//     qDebug() << "TOTAL:" << total;
+//     // Сверяем общую сумму тоже, чтобы не ошибиться руками
+//     QCOMPARE(total, 2103487ull);
+// }
 
 static uint64_t PerftRec(Position& pos, Side stm, int depth){
     if (depth==0) return 1;
@@ -266,11 +266,12 @@ void LegalMoveGenTest::Debug_Divide_Position2_d4() {
         v.push_back({mv(ml[i]), n});
     }
     std::sort(v.begin(), v.end(), [](auto&a,auto&b){ return a.m<b.m; });
-    uint64_t total=0;
-    for (auto& it: v){
-        qDebug() << it.m << ":" << it.n;
-        total += it.n;
-    }
-    qDebug() << "TOTAL:" << total; // ожидаем 2'103'487
+
+    // uint64_t total=0;
+    // for (auto& it: v){
+    //     qDebug() << it.m << ":" << it.n;
+    //     total += it.n;
+    // }
+    // qDebug() << "TOTAL:" << total; // ожидаем 2'103'487
 }
 

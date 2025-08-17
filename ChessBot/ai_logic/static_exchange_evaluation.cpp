@@ -394,5 +394,9 @@ int StaticExchangeEvaluation::Capture(const Pieces& pieces, const Move& move) {
         gains_cp[i] = best;
     }
 
-    return gains_cp[0];
+    if (exchange_depth >= 2) {
+        return -gains_cp[1];
+    } else {
+        return gains_cp[0];
+    }
 }

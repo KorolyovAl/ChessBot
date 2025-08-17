@@ -12,7 +12,7 @@ void PiecesTest::SimpleFenShouldSetPawnsCorrectly() {
     Bitboard white_expected = 0x00000000000000FF;
     Bitboard black_expected = 0x000000000000FF00;
 
-    PrintBitboard(white_expected);
+    //PrintBitboard(white_expected);
 
     QCOMPARE(p.GetPieceBitboard(Side::White, PieceType::Pawn), white_expected);
     QCOMPARE(p.GetPieceBitboard(Side::Black, PieceType::Pawn), black_expected);

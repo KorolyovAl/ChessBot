@@ -49,7 +49,7 @@ void TranspositionTableTest::Probe_ShouldMissOnShallowDepthOrWrongWindow() {
     }
     {
         int out_score = 0; Move out_best;
-        const bool hit = tt.Probe(key, depth, score + 1, score + 1000, out_score, out_best);
+        const bool hit = tt.Probe(key, depth, score - 1, score + 1000, out_score, out_best);
         QVERIFY(!hit); // window excludes upper-bound usefulness
     }
 }

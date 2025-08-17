@@ -59,7 +59,6 @@ int main(int argc, char** argv) {
     {
         EvaluationTest evaluation_test;
         status |= QTest::qExec(&evaluation_test, argc, argv);
-
     }
 
     {

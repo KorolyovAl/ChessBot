@@ -55,21 +55,21 @@ private:
     inline static bool IsPromotionFlag(Move::Flag f) {
         // Promotion flags are a closed set
         switch (f) {
-        case Move::Flag::PromoteToKnight: {
-            return true;
-        }
-        case Move::Flag::PromoteToBishop: {
-            return true;
-        }
-        case Move::Flag::PromoteToRook: {
-            return true;
-        }
-        case Move::Flag::PromoteToQueen: {
-            return true;
-        }
-        default: {
-            return false;
-        }
+            case Move::Flag::PromoteToKnight: {
+                return true;
+            }
+            case Move::Flag::PromoteToBishop: {
+                return true;
+            }
+            case Move::Flag::PromoteToRook: {
+                return true;
+            }
+            case Move::Flag::PromoteToQueen: {
+                return true;
+            }
+            default: {
+                return false;
+            }
         }
     }
 
@@ -95,6 +95,19 @@ private:
         return static_cast<uint16_t>(m.GetFrom() | (m.GetTo() << 8));
     }
 
+    inline bool IncreaseNodeCounter() noexcept {
+        // Сначала проверяем время/стоп
+        if (is_stopped_ && is_stopped_()) {
+            return false;
+        }
+        // Предчек лимита нод: не даём перелезть
+        if (limits_.nodes_limit > 0 && nodes_ >= limits_.nodes_limit) {
+            return false;
+        }
+        ++nodes_;
+        return true;
+    }
+
 private:
     TranspositionTable& tt_;
     bool (*is_stopped_)() = nullptr;
@@ -104,6 +117,8 @@ private:
     int history_[2][64][64]{};       // SimpleMoves history (side, from, to)
 
     int lmr_base_index_ = 4;         // start LMR from the 4th SimpleMove
+
+    SearchLimits limits_{};
 
     friend class SearchEngineTest;
 };
