@@ -20,9 +20,11 @@ SOURCES += \
     board_state/position.cpp \
     board_state/repetition_history.cpp \
     board_state/zobrist_hash.cpp \
+    game_controller/game_controller.cpp \
     move_generation/legal_move_gen.cpp \
     move_generation/move_list.cpp \
     move_generation/ps_legal_move_mask_gen.cpp \
+    user_interface/game_controller_qt.cpp \
     user_interface/main.cpp \
     user_interface/mainwindow.cpp
 
@@ -40,6 +42,7 @@ HEADERS += \
     board_state/position.h \
     board_state/repetition_history.h \
     board_state/zobrist_hash.h \
+    game_controller/game_controller.h \
     move_generation/king_masks.h \
     move_generation/knight_masks.h \
     move_generation/legal_move_gen.h \
@@ -47,6 +50,7 @@ HEADERS += \
     move_generation/pawn_attack_masks.h \
     move_generation/ps_legal_move_mask_gen.h \
     move_generation/sliders_masks.h \
+    user_interface/game_controller_qt.h \
     user_interface/mainwindow.h \
     utils/bitboard_debug.h
 

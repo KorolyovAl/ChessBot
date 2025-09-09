@@ -23,7 +23,8 @@ enum PieceType {
     Rook,
     Queen,
     King,
-    Count
+    Count,
+    None
 };
 
 enum class Side {
