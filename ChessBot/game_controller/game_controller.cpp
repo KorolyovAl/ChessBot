@@ -14,8 +14,9 @@
 #include "../ai_logic/evaluation.h"
 #include "../ai_logic/search.h"
 
+// Anonymous namespace holds internal helpers and local state
 namespace {
-    // Глобальный флаг остановки поиска (для StopSearch)
+    // Global stop flag for the search routine; toggled by StopSearch() and read by the engine
     static std::atomic<bool> g_stop_requested{false};
 
     inline bool IsSquareAttackedByEnemy(const Pieces& pcs, uint8_t sq, Side side) {
@@ -28,6 +29,7 @@ namespace {
         return list.GetSize() == 0;
     }
 
+    // Returns true if the side’s king is in check
     inline bool IsSideInCheck(const Position& pos, Side side) {
         const Bitboard kbb = pos.GetPieces().GetPieceBitboard(side, PieceType::King);
         if (kbb == 0ULL) {
@@ -49,6 +51,7 @@ namespace {
         }
     }
 
+    // Determines the current game result based on terminal conditions (50-move, repetition, mate/stalemate)
     inline GameResult DetectResult(const Position& pos) {
         if (pos.IsFiftyMoveRuleDraw()) {
             return GameResult::DrawFiftyMove;
@@ -68,10 +71,12 @@ namespace {
         return GameResult::Ongoing;
     }
 
+    // Static evaluation in centipawns for the current position
     inline int EvaluateCp(const Position& pos) {
         return Evaluation::Evaluate(pos);
     }
 
+    // Maps a UI-provided promotion piece type to the corresponding move flag
     inline Move::Flag PromotionFlagForPieceType(uint8_t piece_type) {
         switch (static_cast<PieceType>(piece_type)) {
             case PieceType::Knight:
@@ -143,6 +148,7 @@ void GameController::LoadFEN(const std::string& short_fen, const Players& player
     }
 }
 
+// Validates and applies a user move; handles promotions, emits events and advances the game state
 bool GameController::MakeUserMove(uint8_t from, uint8_t to, uint8_t promo_piece_type) {
     if (!position_) {
         return false;
@@ -165,13 +171,15 @@ bool GameController::MakeUserMove(uint8_t from, uint8_t to, uint8_t promo_piece_
 
         const auto flag = m.GetFlag();
         if (!IsPromotionFlag(flag)) {
+            // Non-promotion move: accept only if UI did not request a promotion piece
             if (promo_piece_type == 0) {
                 chosen = m;
                 found = true;
                 break;
             }
-            continue; // запросили промо-тип, а ход — не промо
+            continue;
         } else {
+            // Promotion move: accept only if UI provided a matching promotion piece type
             if (promo_piece_type == 0) {
                 continue;
             }
@@ -188,6 +196,7 @@ bool GameController::MakeUserMove(uint8_t from, uint8_t to, uint8_t promo_piece_
         return false;
     }
 
+    // Apply move and notify listeners about the move and the new position
     Position::Undo u{};
     position_->ApplyMove(chosen, u);
 
@@ -197,6 +206,7 @@ bool GameController::MakeUserMove(uint8_t from, uint8_t to, uint8_t promo_piece_
     }
     EmitPosition_();
 
+    // Check for terminal state and either finish the game or pass control to the next side
     result_ = DetectResult(*position_);
     if (result_ != GameResult::Ongoing) {
         state_ = ControllerState::GameOver;
@@ -236,6 +246,7 @@ bool GameController::MakeUserMove(uint8_t from, uint8_t to, uint8_t promo_piece_
     return true;
 }
 
+// Computes and emits a bitmask of legal targets for a given origin square
 void GameController::RequestLegalMask(uint8_t square) {
     if (!on_legal_mask_) {
         return;
@@ -263,10 +274,12 @@ void GameController::RequestLegalMask(uint8_t square) {
     on_legal_mask_(square, mask);
 }
 
+// Stores engine search limits to be used on the next search start
 void GameController::SetEngineLimits(const EngineLimits& lim) {
     engine_limits_ = lim;
 }
 
+// Enables or disables the engine for a given side and updates players configuration
 void GameController::SetEngineSide(Side side, bool enabled) {
     if (side == Side::White) {
         players_.white = enabled ? PlayerType::Engine : PlayerType::Human;
@@ -279,6 +292,7 @@ void GameController::StopSearch() {
     g_stop_requested.store(true, std::memory_order_relaxed);
 }
 
+// Exports the current position as a short FEN string
 std::string GameController::GetFEN() const {
     if (!position_) {
         return std::string{};
@@ -293,6 +307,7 @@ GameResult GameController::GetResult() const {
     return result_;
 }
 
+// Registers UI callbacks
 void GameController::SetOnPosition(OnPosition callback) {
     on_position_ = std::move(callback);
 }
@@ -316,6 +331,7 @@ void GameController::EnterPlayerTurn_() {
     state_ = ControllerState::PlayerTurn;
 }
 
+// Runs a synchronous engine search, applies best move if any, and updates state/result accordingly
 void GameController::EnterEngineThinking_() {
     if (!position_) {
         return;
@@ -340,9 +356,10 @@ void GameController::EnterEngineThinking_() {
         limits.nodes_limit = engine_limits_.max_nodes;
     }
 
-    // Синхронный поиск (если нужен отдельный поток — вынесем позднее)
+    // Synchronous search
     SearchResult res = engine_->Search(*position_, limits);
 
+    // Emit best move along with a simple textual PV representation
     if (on_best_move_) {
         std::ostringstream pv;
         for (int i = 0; i < res.pv.length; ++i) {
@@ -355,6 +372,7 @@ void GameController::EnterEngineThinking_() {
         on_best_move_(res.best_move, pv.str());
     }
 
+    // Apply best move if it looks valid and then evaluate, update position and check for terminal state
     if (res.best_move.GetFrom() != Move::None && res.best_move.GetTo() != Move::None) {
         Position::Undo u{};
         position_->ApplyMove(res.best_move, u);
@@ -408,6 +426,7 @@ void GameController::ApplyMoveAndNotify_(const Move& m, int eval_cp) {
     EmitPosition_();
 }
 
+// Emits the current position snapshot via the OnPosition callback if it is set
 void GameController::EmitPosition_() const {
     if (on_position_ && position_) {
         on_position_(*position_);

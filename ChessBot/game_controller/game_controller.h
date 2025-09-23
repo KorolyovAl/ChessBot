@@ -31,7 +31,7 @@ struct EngineLimits {
     int max_nodes = 0;
 };
 
-enum class PlayerType : uint8_t {
+enum class PlayerType {
     Human,
     Engine
 };

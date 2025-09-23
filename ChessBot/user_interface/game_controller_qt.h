@@ -17,11 +17,15 @@ class GameControllerQt : public QObject {
 public:
     explicit GameControllerQt(GameController& controller, QObject* parent = nullptr);
 
-    Q_INVOKABLE void NewGame();
-    Q_INVOKABLE void LoadFEN(const QString& fen);
-    Q_INVOKABLE bool MakeUserMove(int from, int to, int promoPieceType = 0);
+    // UI commands (called from UI thread)
+    Q_INVOKABLE void NewGame(bool white_engine, bool black_engine);
+    Q_INVOKABLE void LoadFEN(const QString& fen, bool white_engine, bool black_engine);
+    Q_INVOKABLE bool MakeUserMove(int from, int to, int promo_piece_type = 0);
+    Q_INVOKABLE void RequestLegalMask(int square);
+    Q_INVOKABLE void SetEngineDepthLimit(int max_depth);
 
 signals:
+    // UI updates (emitted by adapter on controller events)
     void PositionUpdated(const QString& fen);
     void MoveMade(int from, int to, int eval_centipawn);
     void SearchInfo(int depth, int eval_centipawn, const QString& principal_variation);
