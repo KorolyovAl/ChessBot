@@ -45,6 +45,7 @@ public:
     void SetPieceBitboard(Side side, PieceType piece, Bitboard bb);
 
     // Getters
+    std::pair<Side, PieceType> GetPiece(int square) const;
     Bitboard GetPieceBitboard(Side side, PieceType piece) const;
     Bitboard GetSideBoard(Side side) const;
     Bitboard GetInvSideBitboard(Side side) const;

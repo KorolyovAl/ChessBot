@@ -15,6 +15,7 @@ GameControllerQt::GameControllerQt(GameController& controller, QObject* parent)
             if (controller_ != nullptr) {
                 const QString fen = QString::fromStdString(controller_->GetFEN());
                 emit PositionUpdated(fen);
+                EmitSnapshotFromPosition();
             }
         });
 
@@ -54,6 +55,10 @@ GameControllerQt::GameControllerQt(GameController& controller, QObject* parent)
     }
 }
 
+GameControllerQt::GameControllerQt(QObject* parent)
+    : QObject(parent) {
+}
+
 void GameControllerQt::NewGame(bool white_engine, bool black_engine) {
     if (controller_ == nullptr) {
         return;
@@ -69,6 +74,8 @@ void GameControllerQt::NewGame(bool white_engine, bool black_engine) {
     tc.use_increment = true;
 
     controller_->NewGame(players, tc);
+
+    EmitSnapshotFromPosition();
 }
 
 void GameControllerQt::LoadFEN(const QString& fen, bool white_engine, bool black_engine) {
@@ -86,6 +93,8 @@ void GameControllerQt::LoadFEN(const QString& fen, bool white_engine, bool black
     tc.use_increment = true;
 
     controller_->LoadFEN(fen.toStdString(), players, tc);
+
+    EmitSnapshotFromPosition();
 }
 
 bool GameControllerQt::MakeUserMove(int from, int to, int promo_piece_type) {
@@ -96,7 +105,12 @@ bool GameControllerQt::MakeUserMove(int from, int to, int promo_piece_type) {
     const uint8_t ufrom = static_cast<uint8_t>(from);
     const uint8_t uto = static_cast<uint8_t>(to);
     const uint8_t upromo = static_cast<uint8_t>(promo_piece_type);
-    return controller_->MakeUserMove(ufrom, uto, upromo);
+
+    const bool ok = controller_->MakeUserMove(ufrom, uto, upromo);
+    if (ok) {
+        EmitSnapshotFromPosition();
+    }
+    return ok;
 }
 
 void GameControllerQt::RequestLegalMask(int square) {
@@ -118,4 +132,23 @@ void GameControllerQt::SetEngineDepthLimit(int max_depth) {
         lim.max_depth = max_depth;
     }
     controller_->SetEngineLimits(lim);
+}
+
+void GameControllerQt::EmitSnapshotFromPosition() {
+    const QByteArray pieces = BuildPiecesArrayFromEngine();
+    const bool white_to_move = true; // Obtain from Position (move_counter_ rule)
+    const int last_from = -1; // Fill from controller's last move
+    const int last_to = -1;
+    const quint64 legal_mask = 0; // Optionally pass last requested mask
+
+    emit BoardSnapshot(pieces, white_to_move, last_from, last_to, legal_mask);
+}
+
+QByteArray GameControllerQt::BuildPiecesArrayFromEngine() const {
+    QByteArray arr(64, '\0');
+
+    for (int sq = 0; sq < 64; ++sq) {
+        arr[sq] = controller_->GetPiece(sq);
+    }
+    return arr;
 }

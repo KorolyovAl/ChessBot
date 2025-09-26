@@ -56,16 +56,16 @@ public:
 
         uint8_t CapturedType = NONE;
         uint8_t CapturedSide = NONE;
-        uint8_t CapturedSquare = NONE;   // для en_passant — реальный квадрат съеденной пешки
+        uint8_t CapturedSquare = NONE;   // for en_passant — the square of captured pawn
 
-        uint8_t RookFrom = NONE;         // для рокировок
+        uint8_t RookFrom = NONE;         // for castling
         uint8_t RookTo   = NONE;
     };
 
     void ApplyMove(Move move);
     void ApplyMove(Move move, Undo& u);
     void UndoMove(Move move, const Undo& u);
-    uint64_t GetZobristKey() const { return hash_.GetValue(); } // для TT
+    uint64_t GetZobristKey() const { return hash_.GetValue(); } // for transposition table
 
     struct NullUndo {
         uint8_t  EnPassantBefore = NONE;
@@ -86,6 +86,7 @@ private:
     void UpdateMoveCounter();
     void UpdateFiftyMovesCounter(bool breaking_event);
 
+private:
     Pieces pieces_;
     uint8_t en_passant_ = NONE;
 

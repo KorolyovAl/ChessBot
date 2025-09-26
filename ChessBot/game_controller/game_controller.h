@@ -11,6 +11,10 @@
 #include <functional>
 #include <memory>
 
+#include "../board_state/pieces.h"
+#include "../board_state/repetition_history.h"
+#include "../ai_logic/search.h"
+
 class Position;
 class Move;
 class TranspositionTable;
@@ -76,6 +80,7 @@ public:
 
     std::string GetFEN() const;
     GameResult GetResult() const;
+    int GetPiece(int square) const;
 
     using OnPosition = std::function<void(const Position&)>;
     using OnMove = std::function<void(const Move&, int /*halfmove_index*/, int /*eval_centipawns*/)>;

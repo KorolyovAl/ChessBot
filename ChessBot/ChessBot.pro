@@ -24,6 +24,7 @@ SOURCES += \
     move_generation/legal_move_gen.cpp \
     move_generation/move_list.cpp \
     move_generation/ps_legal_move_mask_gen.cpp \
+    user_interface/board_widget.cpp \
     user_interface/game_controller_qt.cpp \
     user_interface/main.cpp \
     user_interface/mainwindow.cpp
@@ -50,6 +51,7 @@ HEADERS += \
     move_generation/pawn_attack_masks.h \
     move_generation/ps_legal_move_mask_gen.h \
     move_generation/sliders_masks.h \
+    user_interface/board_widget.h \
     user_interface/game_controller_qt.h \
     user_interface/mainwindow.h \
     utils/bitboard_debug.h
@@ -64,3 +66,6 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 DISTFILES += \
     utils/Structure_of_project
+
+RESOURCES += \
+    source.qrc

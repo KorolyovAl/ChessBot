@@ -1,23 +1,34 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+/************
+* MainWindow hosts BoardWidget and wires it to GameControllerQt. The controller
+* provides a board snapshot for rendering; FEN may still be used for logging.
+************/
+
+#pragma once
 
 #include <QMainWindow>
+#include <QPointer>
 
-QT_BEGIN_NAMESPACE
-namespace Ui {
-class MainWindow;
-}
-QT_END_NAMESPACE
+class BoardWidget;
+class GameControllerQt;
+class GameController;
 
-class MainWindow : public QMainWindow
-{
+class MainWindow : public QMainWindow {
     Q_OBJECT
-
 public:
-    MainWindow(QWidget *parent = nullptr);
-    ~MainWindow();
+    explicit MainWindow(GameController* controller, QWidget* parent = nullptr);
+    ~MainWindow() override;
+
+private slots:
+    void OnBoardSnapshot(const QByteArray& pieces, bool white_to_move,
+                         int last_from, int last_to, quint64 legal_mask);
+    void OnMoveMade(int from_sq, int to_sq);
+    void OnBestMove(int from_sq, int to_sq);
 
 private:
-    Ui::MainWindow *ui;
+    void BuildUi();
+    void WireSignals();
+
+private:
+    BoardWidget* board_widget_ = nullptr;
+    QPointer<GameControllerQt> controller_qt_;
 };
-#endif // MAINWINDOW_H

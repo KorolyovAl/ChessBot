@@ -6,8 +6,9 @@
 ************/
 #pragma once
 
-
 #include <QObject>
+#include <QByteArray>
+#include <QString>
 
 class GameController;
 
@@ -16,6 +17,7 @@ class GameControllerQt : public QObject {
 
 public:
     explicit GameControllerQt(GameController& controller, QObject* parent = nullptr);
+    explicit GameControllerQt(QObject* parent = nullptr);
 
     // UI commands (called from UI thread)
     Q_INVOKABLE void NewGame(bool white_engine, bool black_engine);
@@ -26,12 +28,19 @@ public:
 
 signals:
     // UI updates (emitted by adapter on controller events)
+    void BoardSnapshot(const QByteArray& pieces, bool white_to_move,
+                       int last_from, int last_to, quint64 legal_mask);
     void PositionUpdated(const QString& fen);
     void MoveMade(int from, int to, int eval_centipawn);
     void SearchInfo(int depth, int eval_centipawn, const QString& principal_variation);
     void BestMove(int from, int to, const QString& principal_variation);
     void GameOver(int result, const QString& reason);
     void LegalMask(int square, quint64 mask);
+
+private:
+    void EmitSnapshotFromPosition();
+    QByteArray BuildPiecesArrayFromEngine() const; // uses board_state tools
+
 private:
     GameController* controller_ = nullptr;
 };

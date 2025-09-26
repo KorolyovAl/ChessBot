@@ -53,3 +53,4 @@ qrc_*.cpp        # сгенерированные .cpp от ресурсов
 *.7z
 
 key.txt*
+Code_style_prompt.txt

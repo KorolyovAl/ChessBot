@@ -29,13 +29,26 @@ Pieces::Pieces(const std::string& short_fen) {
 
             PieceType piece;
             switch (ch) {
-            case 'p': piece = PieceType::Pawn; break;
-            case 'n': piece = PieceType::Knight; break;
-            case 'b': piece = PieceType::Bishop; break;
-            case 'r': piece = PieceType::Rook; break;
-            case 'q': piece = PieceType::Queen; break;
-            case 'k': piece = PieceType::King; break;
-            default: continue;
+                case 'p':
+                    piece = PieceType::Pawn;
+                    break;
+                case 'n':
+                    piece = PieceType::Knight;
+                    break;
+                case 'b':
+                    piece = PieceType::Bishop;
+                    break;
+                case 'r':
+                    piece = PieceType::Rook;
+                    break;
+                case 'q':
+                    piece = PieceType::Queen;
+                    break;
+                case 'k':
+                    piece = PieceType::King;
+                    break;
+                default:
+                    continue;
             }
 
             piece_bitboards_[static_cast<int>(side)][static_cast<int>(piece)] =
@@ -118,6 +131,48 @@ void Pieces::UpdateBitboard() {
 
 void Pieces::SetPieceBitboard(Side side, PieceType piece, Bitboard bb) {
     piece_bitboards_[static_cast<int>(side)][static_cast<int>(piece)] = bb;
+}
+
+std::pair<Side, PieceType> Pieces::GetPiece(int square) const {
+    char piece = GetPieceChar(*this, square);
+    Side side = Side::White;
+    PieceType ptype = PieceType::None;
+
+    if (piece == '.') {
+        return {side, ptype};
+    }
+
+    if (piece >= 'A' && piece <= 'Z') {
+        side = Side::White;
+    }
+    else {
+        side = Side::Black;
+    }
+
+    piece = std::tolower(piece);
+
+    switch(piece) {
+        case 'p':
+            ptype = PieceType::Pawn;
+            break;
+        case 'r':
+            ptype = PieceType::Rook;
+            break;
+        case 'n':
+            ptype = PieceType::Knight;
+            break;
+        case 'b':
+            ptype = PieceType::Bishop;
+            break;
+        case 'q':
+            ptype = PieceType::Queen;
+            break;
+        case 'k':
+            ptype = PieceType::King;
+            break;
+    }
+
+    return {side, ptype};
 }
 
 Bitboard Pieces::GetPieceBitboard(Side side, PieceType piece) const {

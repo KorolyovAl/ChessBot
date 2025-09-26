@@ -1,16 +1,7 @@
-// ai/move_generation/legal_move_gen.cpp
-/************************************************
-* LegalMoveGen — implementation
-************************************************/
-
 #include "legal_move_gen.h"
 
 #include "ps_legal_move_mask_gen.h"
 #include "pawn_attack_masks.h"
-
-#include <cstdlib> // std::abs
-
-/*──────────────── Вспомогалки ─────────────────*/
 
 /* Быстрый поиск типа защищающейся фигуры на клетке 'sq' (или Move::None) */
 static inline uint8_t DefenderTypeAt(const Pieces& pcs, Side def_side, uint8_t sq) {
@@ -111,7 +102,7 @@ void LegalMoveGen::GenPawnPushes(const Pieces& pcs, Side side, MoveList& out) {
     }
 }
 
-/*──────────────── Конвертер для НЕ пешек ───────────────*/
+/*──────────────── Конвертер для фигур кроме пешек ───────────────*/
 
 void LegalMoveGen::PiecesMaskToMoves(const Pieces& pcs, Bitboard to_mask,
                                      uint8_t from_sq, PieceType attacker_type,
@@ -155,7 +146,7 @@ bool LegalMoveGen::IsLegalAfterMove(Pieces pcs, const Move& move) {
         pcs.SetPieceBitboard(aSide, aType, bb);
     }
 
-    // 2) обычное взятие (НЕ EP): снять фигуру соперника с 'to'
+    // 2) обычное взятие: снять фигуру соперника с 'to'
     if (move.GetDefenderType() != Move::None && flag != Move::Flag::EnPassantCapture) {
         const Side dSide = static_cast<Side>(move.GetDefenderSide());
         const PieceType dType = static_cast<PieceType>(move.GetDefenderType());

@@ -6,13 +6,11 @@
 
 #include "../board_state/position.h"
 #include "../board_state/move.h"
-#include "../board_state/pieces.h"
 #include "../board_state/bitboard.h"
 #include "../move_generation/legal_move_gen.h"
 #include "../move_generation/move_list.h"
 #include "../move_generation/ps_legal_move_mask_gen.h"
 #include "../ai_logic/evaluation.h"
-#include "../ai_logic/search.h"
 
 // Anonymous namespace holds internal helpers and local state
 namespace {
@@ -305,6 +303,29 @@ std::string GameController::GetFEN() const {
 
 GameResult GameController::GetResult() const {
     return result_;
+}
+
+int GameController::GetPiece(int square) const {
+    if (position_ == nullptr) {
+        throw std::logic_error("Position is nullptr");
+    }
+
+    auto [side, piece] = position_->GetPieces().GetPiece(square);
+
+    // return a index of pieces, where 0 - none piece, 1-6 - white side; 7-12 - black side
+    // 1 - pawn; 2 - knight; 3 - bishop; 4 - rook; 5 - queen; 6 - king
+    if (piece == PieceType::None) {
+        return 0;
+    }
+
+    const int base =
+        (piece == PieceType::Pawn)   ? 1 :
+        (piece == PieceType::Knight) ? 2 :
+        (piece == PieceType::Bishop) ? 3 :
+        (piece == PieceType::Rook)   ? 4 :
+        (piece == PieceType::Queen)  ? 5 :
+        /* King */                     6;
+    return (side == Side::White) ? base : base + 6;
 }
 
 // Registers UI callbacks
