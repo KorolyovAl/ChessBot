@@ -39,8 +39,12 @@ signals:
 protected:
     void paintEvent(QPaintEvent* event) override;
     void mousePressEvent(QMouseEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
 
 private:
+    void RecomputeGeometry();
+    int CellSize() const;
+
     int PixelToSquare(const QPoint& p) const;
     QRect SquareRect(int sq) const;
     void DrawBoard(QPainter& p) const;
@@ -51,6 +55,13 @@ private:
     int AskPromotionPiece(bool white_to_move) const;
 
 private:
+    QRect window_;
+    QRect board_;
+    QRect x_coords_;
+    QRect y_coords_;
+    //QRect timer_;
+    //QRect evaluate_bar_;
+
     QByteArray pieces_; // 64 bytes: 0=None, 1..12 per-piece code (controller-defined)
     bool white_to_move_ {true};
     int last_from_ = -1;

@@ -10,6 +10,7 @@ BoardWidget::BoardWidget(QWidget* parent)
     : QWidget(parent) {
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
+    RecomputeGeometry();
 }
 
 void BoardWidget::SetSnapshot(const QByteArray& pieces, bool white_to_move,
@@ -107,76 +108,89 @@ void BoardWidget::mousePressEvent(QMouseEvent* event) {
     }
 }
 
-int BoardWidget::PixelToSquare(const QPoint& p) const {
-    const int w = width();
-    const int h = height();
-    const int size = qMin(w, h);
-    const int off_x = (w - size) / 2;
-    const int off_y = (h - size) / 2;
+void BoardWidget::resizeEvent(QResizeEvent* event) {
+    Q_UNUSED(event);
+    RecomputeGeometry();
+    QWidget::resizeEvent(event);
+}
 
-    if (p.x() < off_x || p.y() < off_y || p.x() >= off_x + size || p.y() >= off_y + size) {
+void BoardWidget::RecomputeGeometry() {
+    window_.setRect(0, 0, width(), height());
+
+    const int w = window_.width();
+    const int h = window_.height();
+
+    int board_size = ((w >= h) ? h : w) * 0.85;
+
+    board_.setRect(w * 0.1, h * 0.1, board_size, board_size);
+
+    x_coords_.setRect(board_.x(), h * 0.05, board_.width(), h * 0.05);
+    y_coords_.setRect(w * 0.05, board_.y(), w * 0.05, board_.height());
+}
+
+int BoardWidget::CellSize() const {
+    return (board_.width() > 0) ? (board_.width() / 8) : 0;
+}
+
+int BoardWidget::PixelToSquare(const QPoint& p) const {
+    const int cell = CellSize();
+    if (!board_.contains(p) || cell <= 0) {
         return -1;
     }
 
-    const int cell = size / 8;
-    const int file = (p.x() - off_x) / cell;
-    const int rank = (p.y() - off_y) / cell;
+    const int column = (p.x() - board_.x()) / cell;
+    const int row = (p.y() - board_.y()) / cell;
 
-    int draw_file = file;
-    int draw_rank = rank;
+    int draw_column = column;
+    int draw_row = row;
+
     if (!white_bottom_) {
-        draw_file = 7 - draw_file;
-        draw_rank = 7 - draw_rank;
+        draw_column = 7 - draw_column;
+        draw_row = 7 - draw_row;
     }
 
-    const int sq_top_left = draw_rank * 8 + draw_file;
+    const int sq_top_left = draw_row * 8 + draw_column;
     const int sq = (7 - (sq_top_left / 8)) * 8 + (sq_top_left % 8);
     return sq;
 }
 
 QRect BoardWidget::SquareRect(int sq) const {
-    const int w = width();
-    const int h = height();
-    const int size = qMin(w, h);
-    const int off_x = (w - size) / 2;
-    const int off_y = (h - size) / 2;
-    const int cell = size / 8;
+    if (sq < 0 || sq >= 64) {
+        return QRect();
+    }
+    const int cell = CellSize();
 
-    int engine_rank = sq / 8;
-    int engine_file = sq % 8;
+    int engine_row = sq / 8;
+    int engine_column = sq % 8;
 
-    int draw_rank = 7 - engine_rank;
-    int draw_file = engine_file;
+    int draw_row = 7 - engine_row;
+    int draw_column = engine_column;
     if (!white_bottom_) {
-        draw_rank = 7 - draw_rank;
-        draw_file = 7 - draw_file;
+        draw_row = 7 - draw_row;
+        draw_column = 7 - draw_column;
     }
 
-    const int x = off_x + draw_file * cell;
-    const int y = off_y + draw_rank * cell;
+    const int x = board_.x() + draw_column * cell;
+    const int y = board_.y() + draw_row * cell;
     return QRect(x, y, cell, cell);
 }
 
 void BoardWidget::DrawBoard(QPainter& p) const {
-    const int w = width();
-    const int h = height();
-    const int size = qMin(w, h);
-    const int off_x = (w - size) / 2;
-    const int off_y = (h - size) / 2;
-    const int cell = size / 8;
+    p.fillRect(rect(), QColor(245, 245, 245));
+    const int cell = CellSize();
 
     for (int r = 0; r < 8; ++r) {
         for (int f = 0; f < 8; ++f) {
             const bool light = ((r + f) % 2 == 0);
-            QColor col = light ? QColor(240, 217, 181) : QColor(181, 136, 99);
-            p.fillRect(off_x + f * cell, off_y + r * cell, cell, cell, col);
+            const QColor col = light ? QColor(240, 217, 181) : QColor(181, 136, 99);
+            p.fillRect(board_.x() + f * cell, board_.y() + r * cell, cell, cell, col);
         }
     }
 
     p.setPen(QPen(QColor(60, 60, 60)));
     for (int i = 0; i <= 8; ++i) {
-        p.drawLine(off_x, off_y + i * cell, off_x + 8 * cell, off_y + i * cell);
-        p.drawLine(off_x + i * cell, off_y, off_x + i * cell, off_y + 8 * cell);
+        p.drawLine(board_.x(), board_.y() + i * cell, board_.x() + 8 * cell, board_.y() + i * cell);
+        p.drawLine(board_.x() + i * cell, board_.y(), board_.x() + i * cell, board_.y() + 8 * cell);
     }
 }
 
@@ -255,25 +269,25 @@ void BoardWidget::DrawPieces(QPainter& p) const {
 }
 
 void BoardWidget::DrawCoords(QPainter& p) const {
-    const int w = width();
-    const int h = height();
-    const int size = qMin(w, h);
-    const int off_x = (w - size) / 2;
-    const int off_y = (h - size) / 2;
-    const int cell = size / 8;
+    const int cell = CellSize();
 
     QFont f = p.font();
-    f.setPointSizeF(cell * 0.22);
+    f.setPointSizeF(qMax(10.0, cell * 0.22));
     p.setFont(f);
     p.setPen(QColor(30, 30, 30));
 
     for (int i = 0; i < 8; ++i) {
-        const int file_draw = white_bottom_ ? i : (7 - i);
-        const int rank_draw = white_bottom_ ? (7 - i) : i;
-        const QChar file_char('a' + file_draw);
-        const QChar rank_char('1' + rank_draw);
-        p.drawText(off_x + i * cell + 3, off_y + 8 * cell - 5, QString(file_char));
-        p.drawText(off_x + 2, off_y + i * cell + 14, QString(rank_char));
+        const int symb_draw = white_bottom_ ? i : (7 - i);
+        const int digit_draw = white_bottom_ ? (7 - i) : i;
+
+        const QChar symb_char('a' + symb_draw);
+        const QChar digit_char('1' + digit_draw);
+
+        const QRect s(board_.x() + i * cell, x_coords_.y(), cell, x_coords_.height());
+        const QRect d(y_coords_.x(), board_.y() + i * cell, y_coords_.width(), cell);
+
+        p.drawText(s, Qt::AlignCenter, QString(symb_char));
+        p.drawText(d, Qt::AlignCenter, QString(digit_char));
     }
 }
 
