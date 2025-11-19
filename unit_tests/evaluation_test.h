@@ -41,4 +41,9 @@ private slots:
     // Micro-benchmark: cost of a single Evaluate() on a dense middlegame scene.
     // Uses QBENCHMARK so the time appears in the Test Results panel.
     void Benchmark_Evaluate_MidgameDense();
+
+    // Compare position evaluating with Stockfish eval
+    void Test_LaskerTrap();
+    void Test_BratkoKopec();
+    void Test_From_Game_1();
 };

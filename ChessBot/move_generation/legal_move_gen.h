@@ -1,18 +1,8 @@
-/************************************************
-* LegalMoveGen — генерация ЛЕГАЛЬНЫХ ходов
-*
-* Подход:
-* 1) Генерим псевдолегальные маски через PsLegalMaskGen
-*    ИЛИ (для пешек-взятия) напрямую из PawnMasks::kAttack[from].
-* 2) Конвертируем маски → Move и проверяем легальность
-*    на копии Pieces (снимаем/ставим фигуры, EP/рокировки/промо),
-*    затем SquareInDanger для своего короля.
-*
-* Зачем отдельно обрабатываем взятия пешек:
-* — Это избавляет от «дельт» и wrap-ошибок по фалам.
-* — “from” всегда известен (итерируем сами пешки),
-*   и «этот from действительно бьёт этот to».
-************************************************/
+/************
+* LegalMoveGen is responsible for generating fully legal chess moves for a given side.
+* It relies on pseudo-legal move masks and then filters out moves that leave the king in check.
+* Pawn captures are handled separately to avoid file wrap issues and to leverage precomputed attack masks.
+************/
 
 #pragma once
 
@@ -22,24 +12,24 @@
 
 class LegalMoveGen {
 public:
-    // Заполняет 'out' всеми ЛЕГАЛЬНЫМИ ходами для заданной стороны.
-    // only_captures == true → только взятия (включая en passant).
+    // Fills 'out' with all legal moves for the given side.
+    // If only_captures is true, generates only capture moves (including en passant).
     static void Generate(const Position& position, Side side, MoveList& out, bool only_captures = false);
 
 private:
-    /* Конвертеры масок → ходы для НЕ пешек */
+    // Converters from bit masks to moves for non-pawn pieces.
     static void PiecesMaskToMoves(const Pieces& pcs, Bitboard to_mask,
                                   uint8_t from_sq, PieceType attacker_type,
                                   Side attacker_side, MoveList& out);
 
-    /* Пешечные ходы: отдельные простые пути, без «дельт» */
+    // Pawn moves: simple forward pushes and captures without using coordinate deltas.
     static void GenPawnCaptures (const Pieces& pcs, Side side, MoveList& out);
     static void GenPawnPushes  (const Pieces& pcs, Side side, MoveList& out);
 
-    /* Проверка легальности после применения хода на КОПИИ Pieces */
+    // Checks if the move is legal after applying it on a copy of Pieces.
     static bool IsLegalAfterMove(Pieces pcs, const Move& move);
 
-    /* Спец-ходы */
+    // Special moves: en passant and castling.
     static void AddEnPassantCaptures(const Pieces& pcs, Side side, uint8_t ep_square, MoveList& out);
     static void AddCastlingMoves   (const Pieces& pcs, Side side,
                                  bool long_castle, bool short_castle, MoveList& out);

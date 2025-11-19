@@ -8,10 +8,29 @@
 
 #include "../board_state/position.h"
 
+namespace test {
+    struct EvaluatePos {
+        int material = 0;
+        int imbalance = 0;
+        int pawns_mg = 0;
+        int pawns_eg = 0;
+        int mobility_mg = 0;
+        int mobility_eg = 0;
+        int capturing = 0;
+        int pst_mg = 0;
+        int pst_eg = 0;
+        int king_safety = 0;
+
+        int common = 0;
+    };
+}
+
 class Evaluation {
 public:
     // Main entry: static evaluation in centipawns.
     static int Evaluate(const Position& position);
+
+    static test::EvaluatePos EvaluateForTest(const Position& position);
 
 private:
     // Baseline terms

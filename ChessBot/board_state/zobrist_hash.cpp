@@ -30,11 +30,11 @@ void ZobristHash::InitConstants() {
             }
         }
 
-        black_to_move_key_         = dist(rng);
-        white_long_castling_key_   = dist(rng);
-        white_short_castling_key_  = dist(rng);
-        black_long_castling_key_   = dist(rng);
-        black_short_castling_key_  = dist(rng);
+        black_to_move_key_ = dist(rng);
+        white_long_castling_key_ = dist(rng);
+        white_short_castling_key_ = dist(rng);
+        black_long_castling_key_ = dist(rng);
+        black_short_castling_key_ = dist(rng);
 
         for (int f = 0; f < 8; ++f) {
             en_passant_file_keys_[f] = dist(rng);
@@ -60,11 +60,17 @@ ZobristHash::ZobristHash(Pieces pieces, bool black_to_move,
         }
     }
 
-    if (black_to_move) value_ ^= black_to_move_key_;
-    if (white_long)    value_ ^= white_long_castling_key_;
-    if (white_short)   value_ ^= white_short_castling_key_;
-    if (black_long)    value_ ^= black_long_castling_key_;
-    if (black_short)   value_ ^= black_short_castling_key_;
+    auto ApplyKey = [this](bool condition, uint64_t key) {
+        if (condition) {
+            value_ ^= key;
+        }
+    };
+
+    ApplyKey(black_to_move, black_to_move_key_);
+    ApplyKey(white_long, white_long_castling_key_);
+    ApplyKey(white_short, white_short_castling_key_);
+    ApplyKey(black_long, black_long_castling_key_);
+    ApplyKey(black_short, black_short_castling_key_);
 }
 
 void ZobristHash::InvertPiece(uint8_t square, uint8_t type, uint8_t side) {

@@ -17,6 +17,7 @@
 #include "zobrist_hash.h"
 #include "repetition_history.h"
 
+// Position(short_fen, en_passant, white_long, white_short, black_long, black_short, move_counter)
 class Position {
 public:
     Position() = default;

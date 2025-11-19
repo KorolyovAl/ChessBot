@@ -14,8 +14,6 @@
 
 // Anonymous namespace holds internal helpers and local state
 namespace {
-    // Global stop flag for the search routine; toggled by StopSearch() and read by the engine
-    static std::atomic<bool> g_stop_requested{false};
 
     inline bool IsSquareAttackedByEnemy(const Pieces& pcs, uint8_t sq, Side side) {
         return PsLegalMaskGen::SquareInDanger(pcs, sq, side);
@@ -286,10 +284,6 @@ void GameController::SetEngineSide(Side side, bool enabled) {
     }
 }
 
-void GameController::StopSearch() {
-    g_stop_requested.store(true, std::memory_order_relaxed);
-}
-
 // Exports the current position as a short FEN string
 std::string GameController::GetFEN() const {
     if (!position_) {
@@ -362,11 +356,6 @@ void GameController::EnterEngineThinking_() {
     if (!engine_) {
         engine_.reset(new SearchEngine(table_));
     }
-
-    g_stop_requested.store(false, std::memory_order_relaxed);
-    engine_->SetStopCallback([]() noexcept -> bool {
-        return g_stop_requested.load(std::memory_order_relaxed);
-    });
 
     SearchLimits limits{};
     if (engine_limits_.max_depth > 0) {

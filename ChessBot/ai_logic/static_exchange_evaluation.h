@@ -13,5 +13,5 @@ public:
     static int Capture(const Pieces& pieces, const Move& move);
 
     // Evaluate exchanges on `square` if `side_to_move` starts (approximate).
-    static int On(const Pieces& pieces, uint8_t square, Side side_to_move);
+    static int On(const Pieces& pieces, uint8_t square, Side owner_square);
 };

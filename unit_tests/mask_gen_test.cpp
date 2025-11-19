@@ -123,5 +123,6 @@ void MaskGenTest::BishopMaskOnEmptyBoardEqualsTable() {
 /* 10. square_in_danger false when no attacks */
 void MaskGenTest::SquareInDangerShouldReturnFalseWhenSafe() {
     Pieces pcs("8/8/8/8/8/8/8/2K5");   // lone king c1 (2)
+    //Pieces pcs("rnb1kbnr/pppp1ppp/4pq2/8/8/1P2P3/P1PP1PPP/RNBQKBNR");
     QVERIFY(!PsLegalMaskGen::SquareInDanger(pcs, 2, Side::White));
 }

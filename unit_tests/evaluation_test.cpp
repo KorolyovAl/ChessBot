@@ -4,13 +4,13 @@
 #include "../ChessBot/ai_logic/evaluation.h"
 
 namespace {
-// Helper: create startpos with given side to move.
-// Castling rights set to true to mirror a normal start.
-static Position StartPos(bool whiteToMove) {
-    return Position("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR",
-                    Position::NONE, true, true, true, true,
-                    /*moveCounter=*/whiteToMove ? 0 : 1);
-}
+    // Helper: create startpos with given side to move.
+    // Castling rights set to true to mirror a normal start.
+    static Position StartPos(bool whiteToMove) {
+        return Position("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR",
+                        Position::NONE, true, true, true, true,
+                        /*moveCounter=*/whiteToMove ? 0 : 1);
+    }
 } // namespace
 
 void EvaluationTest::Tempo_ShouldBeAbout10() {
@@ -18,12 +18,14 @@ void EvaluationTest::Tempo_ShouldBeAbout10() {
     {
         Position pos = StartPos(/*whiteToMove=*/true);
         const int s = Evaluation::Evaluate(pos);
+        qDebug() << "Evaluate: " << s;
         QVERIFY2(s >= 8 && s <= 12, "Tempo for White should be around +10 cp");
     }
     // Black to move: mirror sign.
     {
         Position pos = StartPos(/*whiteToMove=*/false);
         const int s = Evaluation::Evaluate(pos);
+        qDebug() << "Evaluate: " << s;
         QVERIFY2(s >= -12 && s <= -8, "Tempo for Black should be around -10 cp");
     }
 }
@@ -36,11 +38,14 @@ void EvaluationTest::PST_KnightCenterBeatsCorner() {
     Position corner("4k3/8/8/8/8/8/8/N3K3",
                     Position::NONE, false, false, false, false, 0);
 
-    const int sc = Evaluation::Evaluate(center);
-    const int sk = Evaluation::Evaluate(corner);
+    const int s_center = Evaluation::Evaluate(center);
+    const int s_corner = Evaluation::Evaluate(corner);
+
+    qDebug() << "Evaluate sc: " << s_center;
+    qDebug() << "Evaluate sk: " << s_corner;
 
     // PST (and mobility) should strongly prefer the center.
-    QVERIFY2(sc - sk >= 40, "A centralized knight must evaluate at least ~40 cp better than a corner knight");
+    QVERIFY2(s_center - s_corner >= 40, "A centralized knight must evaluate at least ~40 cp better than a corner knight");
 }
 
 void EvaluationTest::BishopPair_ShouldBePositive() {
@@ -129,5 +134,75 @@ void EvaluationTest::Benchmark_Evaluate_MidgameDense() {
     QBENCHMARK {
         volatile int sink = Evaluation::Evaluate(pos);
         (void)sink; // prevent elision
+    }
+}
+
+void EvaluationTest::Test_LaskerTrap() {
+    Position pos("r2q1rk1/ppp2ppp/2n2n2/3pp3/3P4/2PBPN2/PP3PPP/R1BQ1RK1",
+                 Position::NONE, false, false, false, false, 0);
+
+    test::EvaluatePos eval = Evaluation::EvaluateForTest(pos);
+
+    QVERIFY2(eval.common >= 250,
+             "At Lasker Trap the white has more 2 pawn eval points without NNUE");
+}
+
+void EvaluationTest::Test_BratkoKopec() {
+    Position pos("r3k2r/pp1b1ppp/2p1pn2/q7/3P4/2N1BN2/PP3PPP/R2Q1RK1",
+                 Position::NONE, false, false, true, true, 0);
+
+    test::EvaluatePos eval = Evaluation::EvaluateForTest(pos);
+
+    QVERIFY2(eval.common >= 250,
+             "At Bratko-Kopec the white has more 2 pawn eval points without NNUE");
+
+}
+
+void EvaluationTest::Test_From_Game_1() {
+    {
+        Position pos("rnb1kbnr/pppp1ppp/4pq2/8/8/1P2P3/P1PP1PPP/RNBQKBNR",
+                     Position::NONE, true, true, true, true, 0);
+
+        test::EvaluatePos eval = Evaluation::EvaluateForTest(pos);
+
+        QVERIFY2(eval.common <= 50,
+                 "At this position evaluation must be less 50 cp");
+    }
+
+    {
+        Position pos("rnb1kbnr/pppp1ppp/4p3/8/8/1PN1P3/P1PP1qPP/R1BQKBNR",
+                     Position::NONE, true, true, true, true, 0);
+
+        test::EvaluatePos eval = Evaluation::EvaluateForTest(pos);
+
+        QVERIFY2(eval.common >= 700,
+                 "At this position evaluation must be more 700 cp");
+    }
+
+    {
+        Position pos("rnb1kbnr/pp1ppppp/1qp5/8/8/1P2P3/PBPP1PPP/RN1QKBNR",
+                     Position::NONE, true, true, true, true, 1);
+
+        test::EvaluatePos eval = Evaluation::EvaluateForTest(pos);
+
+        QVERIFY2(eval.common <= 100,
+                 "At this position evaluation must be less 100 cp");
+    }
+
+    {
+        Position pos("rnb1kbnr/pp1ppppp/2p5/8/8/1q2P3/PBPP1PPP/RN1QKBNR",
+                     Position::NONE, true, true, true, true, 0);
+
+        test::EvaluatePos eval = Evaluation::EvaluateForTest(pos);
+
+        QVERIFY2(eval.common >= 400,
+                 "At this position the white side has a advantage");
+    }
+
+    {
+        Position pos("rnb1k1r1/2pp1ppp/1p2p2n/p7/2PPP3/P1N2B2/1P3KPP/R1BQ3R",
+                     Position::NONE, false, false, true, false, 2);
+
+        test::EvaluatePos eval = Evaluation::EvaluateForTest(pos);
     }
 }

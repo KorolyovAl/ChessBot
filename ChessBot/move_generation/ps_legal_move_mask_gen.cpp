@@ -55,17 +55,21 @@ Bitboard PsLegalMaskGen::KnightMask(const Pieces& pcs, uint8_t sq, Side s, bool 
 Bitboard PsLegalMaskGen::RayUntilBlock(const Pieces& pcs, uint8_t sq, Side s,
                                        bool only_captures,
                                        SlidersMasks::Direction dir, bool reverse) {
-    Bitboard ray      = SlidersMasks::kMasks[sq][dir];
+
+    Bitboard ray = SlidersMasks::kMasks[sq][dir];
     Bitboard blockers = ray & pcs.GetAllBitboard();
 
     if (blockers) {
         uint8_t block_sq = reverse ? BOp::BitScanReverse(blockers) : BOp::BitScanForward(blockers);
         ray ^= SlidersMasks::kMasks[block_sq][dir];             // trim beyond blocker
 
-        if (BOp::GetBit(pcs.GetSideBoard(s), block_sq))
-            ray = BOp::Set_0(ray, block_sq);                    // own piece
-        else
+        if (BOp::GetBit(pcs.GetSideBoard(s), block_sq)) {
+            ray = BOp::Set_0(ray, block_sq);
+        }
+        // own piece
+        else {
             ray = BOp::Set_1(ray, block_sq);                    // capturable
+        }
     }
 
     return only_captures ? (ray & pcs.GetSideBoard(Pieces::Inverse(s)))
@@ -100,16 +104,21 @@ bool PsLegalMaskGen::SquareInDanger(const Pieces& pcs, uint8_t sq, Side s) {
 
     Bitboard enemyPawns = pcs.GetPieceBitboard(enemy, PieceType::Pawn);
 
-    // перебираем все вражеские пешки
+    // Iterate over all enemy pawns
     while (enemyPawns) {
-        uint8_t pawnSq = BOp::BitScanForward(enemyPawns);                       // индекс пешки
+        // pawn square index
+        uint8_t pawnSq = BOp::BitScanForward(enemyPawns);
+        // its attack mask
         Bitboard pawnAtt =
-            PawnMasks::kAttack[static_cast<int>(enemy)][pawnSq];     // её маска ударов
+            PawnMasks::kAttack[static_cast<int>(enemy)][pawnSq];
 
-        if (pawnAtt & (1ULL << sq))                                  // бьёт ли клетку sq?
+        // does it attack square sq?
+        if (pawnAtt & (1ULL << sq)) {
             return true;
+        }
 
-        enemyPawns = BOp::Set_0(enemyPawns, pawnSq);                 // к следующей пешке
+        // move to the next pawn
+        enemyPawns = BOp::Set_0(enemyPawns, pawnSq);
     }
 
     // if (PawnMasks::kAttack[static_cast<int>(enemy)][sq] &

@@ -52,6 +52,12 @@ GameControllerQt::GameControllerQt(GameController& controller, QObject* parent)
         controller_->SetOnLegalMask([this](uint8_t square, uint64_t legal_moves_mask) {
             emit LegalMask(static_cast<int>(square), static_cast<quint64>(legal_moves_mask));
         });
+
+        controller_->SetEngineLimits(EngineLimits{
+                                                  .max_depth = 10,
+                                                  .max_time_ms = 0,
+                                                  .max_nodes = 0,
+        });
     }
 }
 

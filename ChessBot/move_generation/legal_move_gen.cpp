@@ -3,30 +3,31 @@
 #include "ps_legal_move_mask_gen.h"
 #include "pawn_attack_masks.h"
 
-/* Быстрый поиск типа защищающейся фигуры на клетке 'sq' (или Move::None) */
+// Fast lookup of defender piece type on square 'sq' for side def_side (or Move::None if empty)
 static inline uint8_t DefenderTypeAt(const Pieces& pcs, Side def_side, uint8_t sq) {
     for (uint8_t pt = 0; pt < static_cast<uint8_t>(PieceType::Count); ++pt) {
-        if (BOp::GetBit(pcs.GetPieceBitboard(def_side, static_cast<PieceType>(pt)), sq))
+        if (BOp::GetBit(pcs.GetPieceBitboard(def_side, static_cast<PieceType>(pt)), sq)) {
             return pt;
+        }
     }
     return Move::None;
 }
 
-/* Добавить ход (с проверкой легальности и промо при необходимости) */
+// Adds a move (with legality check and promotion handling if needed)
 void LegalMoveGen::TryPushMove(const Pieces& pcs, MoveList& out,
                                uint8_t from, uint8_t to,
                                PieceType attacker_type, Side attacker_side,
                                uint8_t defender_type, uint8_t defender_side,
                                Move::Flag flag)
 {
-    Move m{from, to,
-           static_cast<uint8_t>(attacker_type), static_cast<uint8_t>(attacker_side),
-           defender_type, defender_side, flag};
+    Move m{from, to, static_cast<uint8_t>(attacker_type),
+           static_cast<uint8_t>(attacker_side), defender_type, defender_side, flag};
 
-    if (!LegalMoveGen::IsLegalAfterMove(pcs, m))
+    if (!LegalMoveGen::IsLegalAfterMove(pcs, m)) {
         return;
+    }
 
-    // Промо: если to попадает на последнюю линию
+    // Promotion: if 'to' is on the last rank
     if (attacker_type == PieceType::Pawn && (to < 8 || to > 55)) {
         out.Push({from, to, static_cast<uint8_t>(PieceType::Pawn), static_cast<uint8_t>(attacker_side),
                   defender_type, defender_side, Move::Flag::PromoteToKnight});
@@ -42,9 +43,9 @@ void LegalMoveGen::TryPushMove(const Pieces& pcs, MoveList& out,
     out.Push(m);
 }
 
-/*──────────────── Пешки ─────────────────*/
+/*──────────────── Pawns ─────────────────*/
 
-/* ВЗЯТИЯ пешек: итерируем пешки → берём PawnMasks::kAttack[from] ∩ enemy */
+// Pawn captures: iterate pawns
 void LegalMoveGen::GenPawnCaptures(const Pieces& pcs, Side side, MoveList& out) {
     const Side enemy = Pieces::Inverse(side);
     Bitboard pawns = pcs.GetPieceBitboard(side, PieceType::Pawn);
@@ -59,7 +60,10 @@ void LegalMoveGen::GenPawnCaptures(const Pieces& pcs, Side side, MoveList& out) 
             att = BOp::Set_0(att, to);
 
             const uint8_t def_type = DefenderTypeAt(pcs, enemy, to);
-            if (def_type == Move::None) continue; // паранойя, но быстро
+            // paranoia, but cheap
+            if (def_type == Move::None) {
+                continue;
+            }
 
             TryPushMove(pcs, out, from, to, PieceType::Pawn, side,
                         def_type, static_cast<uint8_t>(enemy), Move::Flag::Capture);
@@ -67,7 +71,7 @@ void LegalMoveGen::GenPawnCaptures(const Pieces& pcs, Side side, MoveList& out) 
     }
 }
 
-/* ОДИН/ДВА шага пешек: берём готовые маски to-клеток из PsLegalMaskGen и восстанавливаем from */
+// Single/double pawn pushes: use precomputed 'to' masks from PsLegalMaskGen and restore 'from'
 void LegalMoveGen::GenPawnPushes(const Pieces& pcs, Side side, MoveList& out) {
     // single: to = from ± 8
     Bitboard single_to = PsLegalMaskGen::PawnSinglePush(pcs, side);
@@ -78,8 +82,9 @@ void LegalMoveGen::GenPawnPushes(const Pieces& pcs, Side side, MoveList& out) {
         single_to = BOp::Set_0(single_to, to);
         uint8_t from = static_cast<uint8_t>(to + d1);
 
-        if (!BOp::GetBit(pcs.GetPieceBitboard(side, PieceType::Pawn), from))
-            continue; // безопасность
+        if (!BOp::GetBit(pcs.GetPieceBitboard(side, PieceType::Pawn), from)) {
+            continue;
+        }
 
         TryPushMove(pcs, out, from, to, PieceType::Pawn, side,
                     Move::None, Move::None, Move::Flag::Default);
@@ -94,21 +99,22 @@ void LegalMoveGen::GenPawnPushes(const Pieces& pcs, Side side, MoveList& out) {
         dbl_to = BOp::Set_0(dbl_to, to);
         uint8_t from = static_cast<uint8_t>(to + d2);
 
-        if (!BOp::GetBit(pcs.GetPieceBitboard(side, PieceType::Pawn), from))
+        if (!BOp::GetBit(pcs.GetPieceBitboard(side, PieceType::Pawn), from)) {
             continue;
+        }
 
         TryPushMove(pcs, out, from, to, PieceType::Pawn, side,
                     Move::None, Move::None, Move::Flag::PawnLongMove);
     }
 }
 
-/*──────────────── Конвертер для фигур кроме пешек ───────────────*/
+/*──────────────── Converter for non-pawn pieces ───────────────*/
 
 void LegalMoveGen::PiecesMaskToMoves(const Pieces& pcs, Bitboard to_mask,
                                      uint8_t from_sq, PieceType attacker_type,
                                      Side attacker_side, MoveList& out)
 {
-    // Доп.страховка: на from_sq должна реально стоять такая фигура
+    // Extra safety: there must be such a piece on from_sq
     if (!BOp::GetBit(pcs.GetPieceBitboard(attacker_side, attacker_type), from_sq))
         return;
 
@@ -127,18 +133,19 @@ void LegalMoveGen::PiecesMaskToMoves(const Pieces& pcs, Bitboard to_mask,
     }
 }
 
-/*──────────────── Легальность ───────────────*/
+/*──────────────── Legality ───────────────*/
 
 bool LegalMoveGen::IsLegalAfterMove(Pieces pcs, const Move& move) {
     const Side aSide      = static_cast<Side>(move.GetAttackerSide());
     const PieceType aType = static_cast<PieceType>(move.GetAttackerType());
     const auto flag       = move.GetFlag();
 
-    // Фигура обязана реально стоять на 'from'
-    if (!BOp::GetBit(pcs.GetPieceBitboard(aSide, aType), move.GetFrom()))
+    // The attacking piece must stand on 'from'
+    if (!BOp::GetBit(pcs.GetPieceBitboard(aSide, aType), move.GetFrom())) {
         return false;
+    }
 
-    // 1) переместить атакующую фигуру (from -> to)
+    // 1) Move the attacking piece (from -> to)
     {
         Bitboard bb = pcs.GetPieceBitboard(aSide, aType);
         bb = BOp::Set_0(bb, move.GetFrom());
@@ -146,7 +153,7 @@ bool LegalMoveGen::IsLegalAfterMove(Pieces pcs, const Move& move) {
         pcs.SetPieceBitboard(aSide, aType, bb);
     }
 
-    // 2) обычное взятие: снять фигуру соперника с 'to'
+    // 2) Normal capture: remove opponent's piece from 'to'
     if (move.GetDefenderType() != Move::None && flag != Move::Flag::EnPassantCapture) {
         const Side dSide = static_cast<Side>(move.GetDefenderSide());
         const PieceType dType = static_cast<PieceType>(move.GetDefenderType());
@@ -155,7 +162,7 @@ bool LegalMoveGen::IsLegalAfterMove(Pieces pcs, const Move& move) {
         pcs.SetPieceBitboard(dSide, dType, dbb);
     }
 
-    // 3) EP: снять пешку с клетки позади 'to'
+    // 3) En-passant: remove the pawn from the square behind 'to'
     if (flag == Move::Flag::EnPassantCapture) {
         if (aSide == Side::White) {
             Bitboard bp = pcs.GetPieceBitboard(Side::Black, PieceType::Pawn);
@@ -168,7 +175,7 @@ bool LegalMoveGen::IsLegalAfterMove(Pieces pcs, const Move& move) {
         }
     }
 
-    // 4) РОКИРОВКА: передвинуть ладью (только перемещение фигур; проверки делаем при генерации)
+    // 4) Castling: move the rook (only piece moves; checks are handled during generation)
     if (aType == PieceType::King) {
         if (flag == Move::Flag::WhiteShortCastling || flag == Move::Flag::BlackShortCastling) {
             const uint8_t rf = (aSide == Side::White) ? 7  : 63;
@@ -187,11 +194,11 @@ bool LegalMoveGen::IsLegalAfterMove(Pieces pcs, const Move& move) {
         }
     }
 
-    // 5) ПРОМО: убрать пешку на 'to' и поставить фигуру промоции
+    // 5) Promotion: remove pawn on 'to' and place the promoted piece
     if (flag == Move::Flag::PromoteToKnight || flag == Move::Flag::PromoteToBishop ||
         flag == Move::Flag::PromoteToRook   || flag == Move::Flag::PromoteToQueen) {
 
-        // снять пешку
+        // Remove pawn
         Bitboard pb = pcs.GetPieceBitboard(aSide, PieceType::Pawn);
         pb = BOp::Set_0(pb, move.GetTo());
         pcs.SetPieceBitboard(aSide, PieceType::Pawn, pb);
@@ -208,7 +215,7 @@ bool LegalMoveGen::IsLegalAfterMove(Pieces pcs, const Move& move) {
 
     pcs.UpdateBitboard();
 
-    // 6) собственный король не под боем
+    // 6) Own king must not be in check after the move
     const uint8_t ksq = BOp::BitScanForward(pcs.GetPieceBitboard(aSide, PieceType::King));
     return !PsLegalMaskGen::SquareInDanger(pcs, ksq, aSide);
 }
@@ -246,9 +253,13 @@ void LegalMoveGen::AddCastlingMoves(const Pieces& pcs, Side side,
     const Move::Flag short_flag = (side == Side::White) ? Move::Flag::WhiteShortCastling : Move::Flag::BlackShortCastling;
 
     const uint8_t king_from = BOp::BitScanForward(pcs.GetPieceBitboard(side, PieceType::King));
-    if (king_from != uint8_t(base + 4)) return; // без короля на e1/e8 рокировку не генерим
 
-    // O-O-O  (коротко: e1/e8→c1/c8, ладья a1/a8→d1/d8)
+    // do not generate castling if the king is not on e1/e8
+    if (king_from != uint8_t(base + 4)) {
+        return;
+    }
+
+    // O-O-O
     if (long_castle &&
         BOp::GetBit(pcs.GetPieceBitboard(side, PieceType::Rook), base + 0) &&
         BOp::GetBit(pcs.GetEmptyBitboard(), base + 1) &&
@@ -262,7 +273,7 @@ void LegalMoveGen::AddCastlingMoves(const Pieces& pcs, Side side,
                     PieceType::King, side, Move::None, Move::None, long_flag);
     }
 
-    // O-O    (коротко: e1/e8→g1/g8, ладья h1/h8→f1/f8)
+    // O-O
     if (short_castle &&
         BOp::GetBit(pcs.GetPieceBitboard(side, PieceType::Rook), base + 7) &&
         BOp::GetBit(pcs.GetEmptyBitboard(), base + 5) &&
@@ -282,12 +293,12 @@ void LegalMoveGen::Generate(const Position& position, Side side, MoveList& out, 
     out = MoveList{}; // reset
     const Pieces& pcs = position.GetPieces();
 
-    // Пешки
+    // Pawns
     GenPawnCaptures(pcs, side, out);
     if (!only_captures)
         GenPawnPushes(pcs, side, out);
 
-    // Конь
+    // Knights
     Bitboard knights = pcs.GetPieceBitboard(side, PieceType::Knight);
     while (knights) {
         uint8_t from = BOp::BitScanForward(knights);
@@ -296,7 +307,7 @@ void LegalMoveGen::Generate(const Position& position, Side side, MoveList& out, 
         PiecesMaskToMoves(pcs, mask, from, PieceType::Knight, side, out);
     }
 
-    // Слон
+    // Bishops
     Bitboard bishops = pcs.GetPieceBitboard(side, PieceType::Bishop);
     while (bishops) {
         uint8_t from = BOp::BitScanForward(bishops);
@@ -305,7 +316,7 @@ void LegalMoveGen::Generate(const Position& position, Side side, MoveList& out, 
         PiecesMaskToMoves(pcs, mask, from, PieceType::Bishop, side, out);
     }
 
-    // Ладья
+    // Rooks
     Bitboard rooks = pcs.GetPieceBitboard(side, PieceType::Rook);
     while (rooks) {
         uint8_t from = BOp::BitScanForward(rooks);
@@ -314,7 +325,7 @@ void LegalMoveGen::Generate(const Position& position, Side side, MoveList& out, 
         PiecesMaskToMoves(pcs, mask, from, PieceType::Rook, side, out);
     }
 
-    // Ферзь
+    // Queens
     Bitboard queens = pcs.GetPieceBitboard(side, PieceType::Queen);
     while (queens) {
         uint8_t from = BOp::BitScanForward(queens);
@@ -323,7 +334,7 @@ void LegalMoveGen::Generate(const Position& position, Side side, MoveList& out, 
         PiecesMaskToMoves(pcs, mask, from, PieceType::Queen, side, out);
     }
 
-    // Король
+    // King
     uint8_t k_from = BOp::BitScanForward(pcs.GetPieceBitboard(side, PieceType::King));
     Bitboard k_mask = PsLegalMaskGen::KingMask(pcs, k_from, side, only_captures);
     PiecesMaskToMoves(pcs, k_mask, k_from, PieceType::King, side, out);
@@ -331,7 +342,7 @@ void LegalMoveGen::Generate(const Position& position, Side side, MoveList& out, 
     // En-Passant
     AddEnPassantCaptures(pcs, side, position.GetEnPassantSquare(), out);
 
-    // Рокировки
+    // Castling
     if (!only_captures) {
         if (side == Side::White) {
             AddCastlingMoves(pcs, Side::White, position.GetWhiteLongCastling(), position.GetWhiteShortCastling(), out);

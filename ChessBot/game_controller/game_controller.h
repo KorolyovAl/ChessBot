@@ -31,7 +31,7 @@ struct TimeControl {
 
 struct EngineLimits {
     int max_depth = 0;
-    int max_time_ms = 0;
+    int max_time_ms = 1'000;
     int max_nodes = 0;
 };
 
@@ -76,7 +76,6 @@ public:
 
     void SetEngineLimits(const EngineLimits& lim);
     void SetEngineSide(Side side, bool enabled);
-    void StopSearch();
 
     std::string GetFEN() const;
     GameResult GetResult() const;

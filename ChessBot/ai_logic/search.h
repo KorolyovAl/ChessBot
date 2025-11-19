@@ -1,8 +1,7 @@
 /************
-* Search — iterative deepening + alpha-beta with PV, TT, qsearch,
-* move ordering (TT/Promos/Captures/CutoffMoves/History), LMR,
-* basic futility/razoring, mate-score normalization. Terminology:
-* CutoffMoves, SimpleMoves, halfmove.
+* Search — iterative deepening with alpha-beta, principal variation, transposition table and quiescence search
+* It uses move ordering (tt, promotions, captures, cutoff moves, history), late move reductions,
+* Basic futility/razoring and mate-score normalization; terminology: cutoff moves, simple moves, halfmove
 ************/
 #pragma once
 
@@ -39,19 +38,19 @@ public:
     SearchResult Search(Position& root, const SearchLimits& limits);
 
 private:
-    // Core searches
+    // Core search routines
     int AlphaBeta(Position& pos, int depth, int alpha, int beta, int halfmove, PvLine& pv);
     int Quiescence(Position& pos, int alpha, int beta, int halfmove, PvLine& pv);
 
-    // Service
+    // Time / stop helpers
     bool IsTimeUp() const noexcept;
 
-    // Mate-score normalization for TT
+    // Mate-score normalization for transposition table
     static bool IsMateScore(int score) noexcept;
     static int ScoreToTT(int score, int halfmove) noexcept;
     static int ScoreFromTT(int score, int halfmove) noexcept;
 
-    // Helpers tied
+    // Helper predicates for move classification
     inline static bool IsPromotionFlag(Move::Flag f) {
         // Promotion flags are a closed set
         switch (f) {
@@ -73,8 +72,8 @@ private:
         }
     }
 
+    // Simple move = not a capture and not a promotion
     inline static bool IsSimpleMove(const Move& m) {
-        // SimpleMove = not a capture and not a promotion
         const auto f = m.GetFlag();
         if (f == Move::Flag::Capture) {
             return false;
@@ -90,17 +89,17 @@ private:
 
     void ResetCutoffKeys() noexcept;
 
+    // Compact 16-bit key: from | (to << 8)
     inline static uint16_t FromToKey(const Move& m) {
-        // Compact 16-bit key: from | (to << 8)
         return static_cast<uint16_t>(m.GetFrom() | (m.GetTo() << 8));
     }
 
     inline bool IncreaseNodeCounter() noexcept {
-        // Сначала проверяем время/стоп
+        // First check external stop callback
         if (is_stopped_ && is_stopped_()) {
             return false;
         }
-        // Предчек лимита нод: не даём перелезть
+        // Pre-check node limit to avoid crossing it
         if (limits_.nodes_limit > 0 && nodes_ >= limits_.nodes_limit) {
             return false;
         }
@@ -113,10 +112,10 @@ private:
     bool (*is_stopped_)() = nullptr;
 
     int64_t nodes_ = 0;
-    uint16_t cutoff_keys_[256][2]{}; // two CutoffMoves per halfmove (0 = empty)
-    int history_[2][64][64]{};       // SimpleMoves history (side, from, to)
+    uint16_t cutoff_keys_[256][2]{}; // Two cutoff moves per halfmove (0 = empty)
+    int history_[2][64][64]{};       // Simple move history (side, from, to)
 
-    int lmr_base_index_ = 4;         // start LMR from the 4th SimpleMove
+    int lmr_base_index_ = 4;         // Start LMR from the 4th simple move
 
     SearchLimits limits_{};
 

@@ -12,4 +12,9 @@ class SeeTest : public QObject {
 private slots:
     void LosingCapture_ShouldBeNegative();
     void WinningCapture_ShouldBePositive();
+
+    void On_QxBf1_ShouldBeNegative();
+    void Capture_QxBf1_ShouldBeNegative();
+    void On_IllegalKingRecapture_Ignored();
+    void Capture_EnPassant_BasicPositive();
 };
