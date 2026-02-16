@@ -1,4 +1,4 @@
-# ChessBot (Qt + C++20)
+# ChessBot (Qt & C++20)
 
 Desktop chess application with a simple Qt Widgets UI and an embedded chess engine.  
 The engine is built around a bitboard representation with legal move generation, evaluation (material + PST), and an alpha-beta search with common practical heuristics (move ordering, quiescence, SEE, transposition table).
@@ -18,7 +18,7 @@ This project is built with qmake and requires:
 
 ### Qt Creator (recommended)
 1. Open `ChessBot/ChessBot.pro` in Qt Creator
-2. Select your Kit (Qt 5+ / Qt 6)
+2. Select your Kit
 3. Build and Run
 
 ### Command line (Linux/macOS)
