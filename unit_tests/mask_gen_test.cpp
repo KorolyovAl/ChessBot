@@ -1,9 +1,9 @@
 #include "mask_gen_test.h"
 
-#include "../ChessBot/board_state/pieces.h"
-#include "../ChessBot/board_state/position.h"
-#include "../ChessBot/move_generation/pawn_attack_masks.h"
-#include "../ChessBot/move_generation/ps_legal_move_mask_gen.h"
+#include "../ChessBot/src/engine_core/board_state/pieces.h"
+#include "../ChessBot/src/engine_core/board_state/position.h"
+#include "../ChessBot/src/engine_core/move_generation/pawn_attack_masks.h"
+#include "../ChessBot/src/engine_core/move_generation/ps_legal_move_mask_gen.h"
 
 /*──────────────────── Pawn attack LUT ───────────────────*/
 

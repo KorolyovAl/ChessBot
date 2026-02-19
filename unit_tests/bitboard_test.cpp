@@ -1,5 +1,5 @@
 #include "bitboard_test.h"
-#include "../ChessBot/board_state/bitboard.h"
+#include "../ChessBot/src/engine_core/board_state/bitboard.h"
 
 void BitboardTest::SetAndGetBit() {
     Bitboard bb = 0;

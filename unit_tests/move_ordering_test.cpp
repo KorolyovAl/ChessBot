@@ -1,8 +1,8 @@
 #include "move_ordering_test.h"
 
-#include "../ChessBot/board_state/pieces.h"
-#include "../ChessBot/board_state/move.h"
-#include "../ChessBot/ai_logic/move_ordering.h"
+#include "../ChessBot/src/engine_core/board_state/pieces.h"
+#include "../ChessBot/src/engine_core/board_state/move.h"
+#include "../ChessBot/src/engine_core/ai_logic/move_ordering.h"
 
 namespace {
 Pieces SimpleMaterial() {

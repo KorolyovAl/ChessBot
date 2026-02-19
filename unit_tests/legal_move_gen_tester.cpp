@@ -1,7 +1,7 @@
 #include "legal_move_gen_tester.h"
 
-#include "../ChessBot/move_generation/legal_move_gen.h"
-#include "../ChessBot/move_generation/move_list.h"
+#include "../ChessBot/src/engine_core/move_generation/legal_move_gen.h"
+#include "../ChessBot/src/engine_core/move_generation/move_list.h"
 
 static inline Side Opposite(Side s) {
     return s == Side::White ? Side::Black : Side::White;

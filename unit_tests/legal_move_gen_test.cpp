@@ -1,11 +1,11 @@
 #include "legal_move_gen_test.h"
 
-#include "../ChessBot/board_state/position.h"
-#include "../ChessBot/board_state/move.h"
-#include "../ChessBot/board_state/pieces.h"
-#include "../ChessBot/move_generation/move_list.h"
-#include "../ChessBot/move_generation/legal_move_gen.h"
-#include "../ChessBot/move_generation/ps_legal_move_mask_gen.h"
+#include "../ChessBot/src/engine_core/board_state/position.h"
+#include "../ChessBot/src/engine_core/board_state/move.h"
+#include "../ChessBot/src/engine_core/board_state/pieces.h"
+#include "../ChessBot/src/engine_core/move_generation/move_list.h"
+#include "../ChessBot/src/engine_core/move_generation/legal_move_gen.h"
+#include "../ChessBot/src/engine_core/move_generation/ps_legal_move_mask_gen.h"
 
 namespace {
     // side helper

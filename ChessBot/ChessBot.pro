@@ -9,52 +9,52 @@ CONFIG += c++20
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
-    ai_logic/evaluation.cpp \
-    ai_logic/move_ordering.cpp \
-    ai_logic/search.cpp \
-    ai_logic/static_exchange_evaluation.cpp \
-    ai_logic/transposition_table.cpp \
-    board_state/bitboard.cpp \
-    board_state/move.cpp \
-    board_state/pieces.cpp \
-    board_state/position.cpp \
-    board_state/repetition_history.cpp \
-    board_state/zobrist_hash.cpp \
-    game_controller/game_controller.cpp \
-    move_generation/legal_move_gen.cpp \
-    move_generation/move_list.cpp \
-    move_generation/ps_legal_move_mask_gen.cpp \
-    user_interface/board_widget.cpp \
-    user_interface/game_controller_qt.cpp \
-    user_interface/main.cpp \
-    user_interface/mainwindow.cpp
+    src/engine_core/ai_logic/evaluation.cpp \
+    src/engine_core/ai_logic/move_ordering.cpp \
+    src/engine_core/ai_logic/search.cpp \
+    src/engine_core/ai_logic/static_exchange_evaluation.cpp \
+    src/engine_core/ai_logic/transposition_table.cpp \
+    src/engine_core/board_state/bitboard.cpp \
+    src/engine_core/board_state/move.cpp \
+    src/engine_core/board_state/pieces.cpp \
+    src/engine_core/board_state/position.cpp \
+    src/engine_core/board_state/repetition_history.cpp \
+    src/engine_core/board_state/zobrist_hash.cpp \
+    src/engine_core/move_generation/legal_move_gen.cpp \
+    src/engine_core/move_generation/move_list.cpp \
+    src/engine_core/move_generation/ps_legal_move_mask_gen.cpp \
+    src/game_controller/game_controller.cpp \
+    src/user_interface/board_widget.cpp \
+    src/user_interface/game_controller_qt.cpp \
+    src/user_interface/main.cpp \
+    src/user_interface/mainwindow.cpp
 
 HEADERS += \
-    ai_logic/evaluation.h \
-    ai_logic/move_ordering.h \
-    ai_logic/piece_values.h \
-    ai_logic/pst_tables.h \
-    ai_logic/search.h \
-    ai_logic/static_exchange_evaluation.h \
-    ai_logic/transposition_table.h \
-    board_state/bitboard.h \
-    board_state/move.h \
-    board_state/pieces.h \
-    board_state/position.h \
-    board_state/repetition_history.h \
-    board_state/zobrist_hash.h \
-    game_controller/game_controller.h \
-    move_generation/king_masks.h \
-    move_generation/knight_masks.h \
-    move_generation/legal_move_gen.h \
-    move_generation/move_list.h \
-    move_generation/pawn_attack_masks.h \
-    move_generation/ps_legal_move_mask_gen.h \
-    move_generation/sliders_masks.h \
-    user_interface/board_widget.h \
-    user_interface/game_controller_qt.h \
-    user_interface/mainwindow.h \
-    utils/bitboard_debug.h
+    src/engine_core/ai_logic/evaluation.h \
+    src/engine_core/ai_logic/move_ordering.h \
+    src/engine_core/ai_logic/piece_values.h \
+    src/engine_core/ai_logic/pst_tables.h \
+    src/engine_core/ai_logic/search.h \
+    src/engine_core/ai_logic/static_exchange_evaluation.h \
+    src/engine_core/ai_logic/transposition_table.h \
+    src/engine_core/board_state/bitboard.h \
+    src/engine_core/board_state/move.h \
+    src/engine_core/board_state/pieces.h \
+    src/engine_core/board_state/position.h \
+    src/engine_core/board_state/repetition_history.h \
+    src/engine_core/board_state/zobrist_hash.h \
+    src/engine_core/move_generation/king_masks.h \
+    src/engine_core/move_generation/knight_masks.h \
+    src/engine_core/move_generation/legal_move_gen.h \
+    src/engine_core/move_generation/move_list.h \
+    src/engine_core/move_generation/pawn_attack_masks.h \
+    src/engine_core/move_generation/ps_legal_move_mask_gen.h \
+    src/engine_core/move_generation/sliders_masks.h \
+    src/game_controller/game_controller.h \
+    src/user_interface/board_widget.h \
+    src/user_interface/game_controller_qt.h \
+    src/user_interface/mainwindow.h \
+    src/utils/bitboard_debug.h
 
 FORMS += \
     mainwindow.ui
@@ -65,7 +65,7 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 DISTFILES += \
-    utils/Structure_of_project
+    Structure_of_project
 
 RESOURCES += \
     source.qrc

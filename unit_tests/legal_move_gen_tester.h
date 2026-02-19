@@ -7,8 +7,8 @@
 #include <cstdint>
 #include <iostream>
 
-#include "../ChessBot/board_state/position.h"
-#include "../ChessBot/board_state/pieces.h"
+#include "../ChessBot/src/engine_core/board_state/position.h"
+#include "../ChessBot/src/engine_core/board_state/pieces.h"
 
 #define nsecs std::chrono::high_resolution_clock::now().time_since_epoch().count()
 

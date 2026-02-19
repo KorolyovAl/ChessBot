@@ -1,8 +1,8 @@
 #include "see_test.h"
 
-#include "../ChessBot/board_state/pieces.h"
-#include "../ChessBot/board_state/move.h"
-#include "../ChessBot/ai_logic/static_exchange_evaluation.h"
+#include "../ChessBot/src/engine_core/board_state/pieces.h"
+#include "../ChessBot/src/engine_core/board_state/move.h"
+#include "../ChessBot/src/engine_core/ai_logic/static_exchange_evaluation.h"
 
 void SeeTest::LosingCapture_ShouldBeNegative() {
     Pieces pcs("r7/p7/8/8/8/8/8/Q7");

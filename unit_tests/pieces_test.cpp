@@ -1,6 +1,6 @@
 #include "pieces_test.h"
-#include "../ChessBot/board_state/pieces.h"
-#include "../ChessBot/utils/bitboard_debug.h"
+#include "../ChessBot/src/engine_core/board_state/pieces.h"
+#include "../ChessBot/src/utils/bitboard_debug.h"
 
 void PiecesTest::EmptyBoardShouldHaveNoPieces() {
     Pieces p("8/8/8/8/8/8/8/8");

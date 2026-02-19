@@ -1,7 +1,7 @@
 #include "evaluation_test.h"
 
-#include "../ChessBot/board_state/position.h"
-#include "../ChessBot/ai_logic/evaluation.h"
+#include "../ChessBot/src/engine_core/board_state/position.h"
+#include "../ChessBot/src/engine_core/ai_logic/evaluation.h"
 
 namespace {
     // Helper: create startpos with given side to move.

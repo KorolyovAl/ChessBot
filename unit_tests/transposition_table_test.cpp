@@ -1,8 +1,8 @@
 #include "transposition_table_test.h"
 
-#include "../ChessBot/ai_logic/transposition_table.h"
-#include "../ChessBot/board_state/move.h"
-#include "../ChessBot/board_state/pieces.h"
+#include "../ChessBot/src/engine_core/ai_logic/transposition_table.h"
+#include "../ChessBot/src/engine_core/board_state/move.h"
+#include "../ChessBot/src/engine_core/board_state/pieces.h"
 
 static Move MakeQuiet(uint8_t from, uint8_t to) {
     return Move(from, to, static_cast<uint8_t>(PieceType::Knight),

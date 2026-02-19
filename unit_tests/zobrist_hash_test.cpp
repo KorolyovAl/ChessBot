@@ -1,7 +1,7 @@
 #include "zobrist_hash_test.h"
 
-#include "../ChessBot/board_state/zobrist_hash.h"
-#include "../ChessBot/board_state/pieces.h"
+#include "../ChessBot/src/engine_core/board_state/zobrist_hash.h"
+#include "../ChessBot/src/engine_core/board_state/pieces.h"
 
 void ZobristHashTest::IdenticalPositionsShouldHaveSameHash() {
     ZobristHash::InitConstants();

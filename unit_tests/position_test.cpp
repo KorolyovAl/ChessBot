@@ -1,5 +1,5 @@
 #include "position_test.h"
-#include "../ChessBot/board_state/position.h"
+#include "../ChessBot/src/engine_core/board_state/position.h"
 
 // === Initialization & Basic Mechanics ===
 

@@ -2,7 +2,7 @@
 
 #include <QString>
 #include <QDebug>
-#include "../board_state/bitboard.h"
+#include "../engine_core/board_state/bitboard.h"
 
 /**********************************************
 * Prints a bitboard using qDebug.

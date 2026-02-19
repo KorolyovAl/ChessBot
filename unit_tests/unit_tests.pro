@@ -8,20 +8,20 @@ CONFIG += c++20
 TEMPLATE = app
 
 SOURCES +=  \
-    ../ChessBot/board_state/pieces.cpp \
-    ../ChessBot/board_state/bitboard.cpp \
-    ../ChessBot/board_state/move.cpp \
-    ../ChessBot/board_state/zobrist_hash.cpp \
-    ../ChessBot/board_state/position.cpp \
-    ../ChessBot/board_state/repetition_history.cpp\
-    ../ChessBot/move_generation/ps_legal_move_mask_gen.cpp \
-    ../ChessBot/move_generation/move_list.cpp \
-    ../ChessBot/move_generation/legal_move_gen.cpp \
-    ../ChessBot/ai_logic/evaluation.cpp \
-    ../ChessBot/ai_logic/move_ordering.cpp \
-    ../ChessBot/ai_logic/static_exchange_evaluation.cpp \
-    ../ChessBot/ai_logic/search.cpp \
-    ../ChessBot/ai_logic/transposition_table.cpp \
+    ../ChessBot/src/engine_core/board_state/pieces.cpp \
+    ../ChessBot/src/engine_core/board_state/bitboard.cpp \
+    ../ChessBot/src/engine_core/board_state/move.cpp \
+    ../ChessBot/src/engine_core/board_state/zobrist_hash.cpp \
+    ../ChessBot/src/engine_core/board_state/position.cpp \
+    ../ChessBot/src/engine_core/board_state/repetition_history.cpp\
+    ../ChessBot/src/engine_core/move_generation/ps_legal_move_mask_gen.cpp \
+    ../ChessBot/src/engine_core/move_generation/move_list.cpp \
+    ../ChessBot/src/engine_core/move_generation/legal_move_gen.cpp \
+    ../ChessBot/src/engine_core/ai_logic/evaluation.cpp \
+    ../ChessBot/src/engine_core/ai_logic/move_ordering.cpp \
+    ../ChessBot/src/engine_core/ai_logic/static_exchange_evaluation.cpp \
+    ../ChessBot/src/engine_core/ai_logic/search.cpp \
+    ../ChessBot/src/engine_core/ai_logic/transposition_table.cpp \
     \
     bitboard_test.cpp \
     evaluation_test.cpp \

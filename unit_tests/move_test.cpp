@@ -1,5 +1,5 @@
 #include "move_test.h"
-#include "../ChessBot/board_state/move.h"
+#include "../ChessBot/src/engine_core/board_state/move.h"
 
 void MoveTest::DefaultMoveShouldHaveNoneFields() {
     Move m;

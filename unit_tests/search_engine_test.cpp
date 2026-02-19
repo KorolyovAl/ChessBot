@@ -1,9 +1,9 @@
 #include "search_engine_test.h"
 
-#include "../ChessBot/board_state/position.h"
-#include "../ChessBot/move_generation/move_list.h"
-#include "../ChessBot/move_generation/legal_move_gen.h"
-#include "../ChessBot/ai_logic/search.h"
+#include "../ChessBot/src/engine_core/board_state/position.h"
+#include "../ChessBot/src/engine_core/move_generation/move_list.h"
+#include "../ChessBot/src/engine_core/move_generation/legal_move_gen.h"
+#include "../ChessBot/src/engine_core/ai_logic/search.h"
 
 namespace {
     Position Make(const char* boardFEN, bool whiteToMove) {
