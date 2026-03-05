@@ -4,13 +4,13 @@
 #include <sstream>
 #include <atomic>
 
-#include "../board_state/position.h"
-#include "../board_state/move.h"
-#include "../board_state/bitboard.h"
-#include "../move_generation/legal_move_gen.h"
-#include "../move_generation/move_list.h"
-#include "../move_generation/ps_legal_move_mask_gen.h"
-#include "../ai_logic/evaluation.h"
+#include "../engine_core/board_state/position.h"
+#include "../engine_core/board_state/move.h"
+#include "../engine_core/board_state/bitboard.h"
+#include "../engine_core/move_generation/legal_move_gen.h"
+#include "../engine_core/move_generation/move_list.h"
+#include "../engine_core/move_generation/ps_legal_move_mask_gen.h"
+#include "../engine_core/ai_logic/evaluation.h"
 
 // Anonymous namespace holds internal helpers and local state
 namespace {

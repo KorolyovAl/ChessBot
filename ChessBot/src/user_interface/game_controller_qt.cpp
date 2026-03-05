@@ -1,6 +1,6 @@
 #include "game_controller_qt.h"
 #include "../game_controller/game_controller.h"
-#include "../board_state/move.h"
+#include "../engine_core/board_state/move.h"
 
 #include <QString>
 
@@ -75,7 +75,7 @@ void GameControllerQt::NewGame(bool white_engine, bool black_engine) {
     players.black = black_engine ? PlayerType::Engine : PlayerType::Human;
 
     TimeControl tc;
-    tc.base_ms = 300'000; // 5 minutes
+    tc.base_ms = 30'000; // 5 minutes
     tc.increment_ms = 300; // +3 seconds
     tc.use_increment = true;
 
@@ -94,7 +94,7 @@ void GameControllerQt::LoadFEN(const QString& fen, bool white_engine, bool black
     players.black = black_engine ? PlayerType::Engine : PlayerType::Human;
 
     TimeControl tc;
-    tc.base_ms = 300'000;
+    tc.base_ms = 30'000;
     tc.increment_ms = 300;
     tc.use_increment = true;
 

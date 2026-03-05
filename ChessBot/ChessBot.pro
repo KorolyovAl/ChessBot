@@ -23,6 +23,7 @@ SOURCES += \
     src/engine_core/move_generation/legal_move_gen.cpp \
     src/engine_core/move_generation/move_list.cpp \
     src/engine_core/move_generation/ps_legal_move_mask_gen.cpp \
+    src/engine_runtime/engine_runtime.cpp \
     src/game_controller/game_controller.cpp \
     src/user_interface/board_widget.cpp \
     src/user_interface/game_controller_qt.cpp \
@@ -50,6 +51,9 @@ HEADERS += \
     src/engine_core/move_generation/pawn_attack_masks.h \
     src/engine_core/move_generation/ps_legal_move_mask_gen.h \
     src/engine_core/move_generation/sliders_masks.h \
+    src/engine_runtime/dispatcher_ui.h \
+    src/engine_runtime/engine_runtime.h \
+    src/engine_runtime/task_queue.h \
     src/game_controller/game_controller.h \
     src/user_interface/board_widget.h \
     src/user_interface/game_controller_qt.h \

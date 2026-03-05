@@ -11,9 +11,9 @@
 #include <functional>
 #include <memory>
 
-#include "../board_state/pieces.h"
-#include "../board_state/repetition_history.h"
-#include "../ai_logic/search.h"
+#include "../engine_core/board_state/pieces.h"
+#include "../engine_core/board_state/repetition_history.h"
+#include "../engine_core/ai_logic/search.h"
 
 class Position;
 class Move;

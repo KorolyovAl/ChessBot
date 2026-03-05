@@ -1,9 +1,9 @@
 #include <QApplication>
 
-#include "user_interface/mainwindow.h"
-#include "ai_logic/transposition_table.h"
-#include "game_controller/game_controller.h"
-#include "user_interface/game_controller_qt.h"
+#include "mainwindow.h"
+#include "../engine_core/ai_logic/transposition_table.h"
+#include "../game_controller/game_controller.h"
+#include "game_controller_qt.h"
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
