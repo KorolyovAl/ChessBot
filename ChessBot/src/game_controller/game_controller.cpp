@@ -1,103 +1,114 @@
 #include "game_controller.h"
 
-#include <utility>
 #include <sstream>
-#include <atomic>
+#include <stdexcept>
 
 #include "../engine_core/board_state/position.h"
-#include "../engine_core/board_state/move.h"
 #include "../engine_core/board_state/bitboard.h"
 #include "../engine_core/move_generation/legal_move_gen.h"
 #include "../engine_core/move_generation/move_list.h"
 #include "../engine_core/move_generation/ps_legal_move_mask_gen.h"
 #include "../engine_core/ai_logic/evaluation.h"
 
-// Anonymous namespace holds internal helpers and local state
 namespace {
 
-    inline bool IsSquareAttackedByEnemy(const Pieces& pcs, uint8_t sq, Side side) {
-        return PsLegalMaskGen::SquareInDanger(pcs, sq, side);
+inline bool IsSquareAttackedByEnemy(const Pieces& pcs, uint8_t sq, Side side) {
+    return PsLegalMaskGen::SquareInDanger(pcs, sq, side);
+}
+
+inline bool HasNoLegalMoves(const Position& pos, Side side) {
+    MoveList list;
+    LegalMoveGen::Generate(pos, side, list, false);
+    return list.GetSize() == 0;
+}
+
+inline bool IsSideInCheck(const Position& pos, Side side) {
+    const Bitboard kbb = pos.GetPieces().GetPieceBitboard(side, PieceType::King);
+    if (kbb == 0ULL) {
+        return false;
     }
 
-    inline bool HasNoLegalMoves(const Position& pos, Side side) {
-        MoveList list;
-        LegalMoveGen::Generate(pos, side, list, false);
-        return list.GetSize() == 0;
+    const uint8_t king_sq = BOp::BitScanForward(kbb);
+    return IsSquareAttackedByEnemy(pos.GetPieces(), king_sq, side);
+}
+
+inline bool IsPromotionFlag(Move::Flag flag) {
+    switch (flag) {
+    case Move::Flag::PromoteToKnight:
+    case Move::Flag::PromoteToBishop:
+    case Move::Flag::PromoteToRook:
+    case Move::Flag::PromoteToQueen:
+        return true;
+    default:
+        return false;
+    }
+}
+
+inline GameResult DetectResult(const Position& pos) {
+    if (pos.IsFiftyMoveRuleDraw()) {
+        return GameResult::DrawFiftyMove;
+    }
+    if (pos.IsThreefoldRepetition()) {
+        return GameResult::DrawRepetition;
     }
 
-    // Returns true if the side’s king is in check
-    inline bool IsSideInCheck(const Position& pos, Side side) {
-        const Bitboard kbb = pos.GetPieces().GetPieceBitboard(side, PieceType::King);
-        if (kbb == 0ULL) {
-            return false;
+    const Side stm = pos.IsWhiteToMove() ? Side::White : Side::Black;
+    if (HasNoLegalMoves(pos, stm)) {
+        if (IsSideInCheck(pos, stm)) {
+            return (stm == Side::White) ? GameResult::BlackWon : GameResult::WhiteWon;
         }
-        const uint8_t king_sq = BOp::BitScanForward(kbb);
-        return IsSquareAttackedByEnemy(pos.GetPieces(), king_sq, side);
+        return GameResult::DrawStalemate;
     }
 
-    inline bool IsPromotionFlag(Move::Flag f) {
-        switch (f) {
-            case Move::Flag::PromoteToKnight:
-            case Move::Flag::PromoteToBishop:
-            case Move::Flag::PromoteToRook:
-            case Move::Flag::PromoteToQueen:
-                return true;
-            default:
-                return false;
-        }
+    return GameResult::Ongoing;
+}
+
+inline int EvaluateCp(const Position& pos) {
+    return Evaluation::Evaluate(pos);
+}
+
+inline Move::Flag PromotionFlagForPieceType(uint8_t piece_type) {
+    switch (static_cast<PieceType>(piece_type)) {
+    case PieceType::Knight:
+        return Move::Flag::PromoteToKnight;
+    case PieceType::Bishop:
+        return Move::Flag::PromoteToBishop;
+    case PieceType::Rook:
+        return Move::Flag::PromoteToRook;
+    case PieceType::Queen:
+        return Move::Flag::PromoteToQueen;
+    default:
+        return Move::Flag::Default;
     }
+}
 
-    // Determines the current game result based on terminal conditions (50-move, repetition, mate/stalemate)
-    inline GameResult DetectResult(const Position& pos) {
-        if (pos.IsFiftyMoveRuleDraw()) {
-            return GameResult::DrawFiftyMove;
-        }
-        if (pos.IsThreefoldRepetition()) {
-            return GameResult::DrawRepetition;
-        }
-
-        const Side stm = pos.IsWhiteToMove() ? Side::White : Side::Black;
-        if (HasNoLegalMoves(pos, stm)) {
-            if (IsSideInCheck(pos, stm)) {
-                return (stm == Side::White) ? GameResult::BlackWon : GameResult::WhiteWon;
-            } else {
-                return GameResult::DrawStalemate;
-            }
-        }
-        return GameResult::Ongoing;
+inline bool IsEngineSideToMove(const Position& pos, const Players& players) {
+    if (pos.IsWhiteToMove()) {
+        return players.white == PlayerType::Engine;
     }
+    return players.black == PlayerType::Engine;
+}
 
-    // Static evaluation in centipawns for the current position
-    inline int EvaluateCp(const Position& pos) {
-        return Evaluation::Evaluate(pos);
+inline std::string ResultReason(GameResult result) {
+    switch (result) {
+    case GameResult::DrawFiftyMove:
+        return "draw by fifty-move rule";
+    case GameResult::DrawRepetition:
+        return "draw by threefold repetition";
+    case GameResult::DrawStalemate:
+        return "stalemate";
+    case GameResult::WhiteWon:
+        return "checkmate — White wins";
+    case GameResult::BlackWon:
+        return "checkmate — Black wins";
+    case GameResult::DrawMaterial:
+        return "draw by insufficient material";
+    case GameResult::Ongoing:
+    default:
+        return "";
     }
+}
 
-    // Maps a UI-provided promotion piece type to the corresponding move flag
-    inline Move::Flag PromotionFlagForPieceType(uint8_t piece_type) {
-        switch (static_cast<PieceType>(piece_type)) {
-            case PieceType::Knight:
-                return Move::Flag::PromoteToKnight;
-            case PieceType::Bishop:
-                return Move::Flag::PromoteToBishop;
-            case PieceType::Rook:
-                return Move::Flag::PromoteToRook;
-            case PieceType::Queen:
-                return Move::Flag::PromoteToQueen;
-            default:
-                return Move::Flag::Default;
-        }
-    }
-
-    inline bool IsEngineToMove(const Position& pos, const Players& players) {
-        const bool white_to_move = pos.IsWhiteToMove();
-
-        if (white_to_move)  {
-            return players.white == PlayerType::Engine;
-        }
-        else {
-            return players.black == PlayerType::Engine;
-        }
-    }
 } // namespace
 
 GameController::GameController(TranspositionTable& table)
@@ -116,12 +127,7 @@ void GameController::NewGame(const Players& players, const TimeControl& tc) {
         0
         ));
 
-    state_ = ControllerState::PlayerTurn;
-    EmitPosition_();
-
-    if (IsEngineToMove(*position_, players_)) {
-        EnterEngineThinking_();
-    }
+    UpdateStateAfterTurn();
 }
 
 void GameController::LoadFEN(const std::string& short_fen, const Players& players, const TimeControl& tc) {
@@ -136,21 +142,25 @@ void GameController::LoadFEN(const std::string& short_fen, const Players& player
         0
         ));
 
-    state_ = ControllerState::PlayerTurn;
-    EmitPosition_();
-
-    if (IsEngineToMove(*position_, players_)) {
-        EnterEngineThinking_();
-    }
+    UpdateStateAfterTurn();
 }
 
-// Validates and applies a user move; handles promotions, emits events and advances the game state
-bool GameController::MakeUserMove(uint8_t from, uint8_t to, uint8_t promo_piece_type) {
+MoveOutcome GameController::MakeUserMove(uint8_t from, uint8_t to, uint8_t promo_piece_type) {
+    MoveOutcome outcome{};
+
     if (!position_) {
-        return false;
+        return outcome;
+    }
+
+    if (state_ != ControllerState::PlayerTurn) {
+        return outcome;
     }
 
     const Side side = position_->IsWhiteToMove() ? Side::White : Side::Black;
+    const PlayerType player_type = (side == Side::White) ? players_.white : players_.black;
+    if (player_type != PlayerType::Human) {
+        return outcome;
+    }
 
     MoveList list;
     LegalMoveGen::Generate(*position_, side, list, false);
@@ -160,100 +170,124 @@ bool GameController::MakeUserMove(uint8_t from, uint8_t to, uint8_t promo_piece_
     const uint8_t size = list.GetSize();
 
     for (uint8_t i = 0; i < size; ++i) {
-        const Move m = list[i];
-        if (m.GetFrom() != from || m.GetTo() != to) {
+        const Move move = list[i];
+        if (move.GetFrom() != from || move.GetTo() != to) {
             continue;
         }
 
-        const auto flag = m.GetFlag();
+        const Move::Flag flag = move.GetFlag();
         if (!IsPromotionFlag(flag)) {
-            // Non-promotion move: accept only if UI did not request a promotion piece
             if (promo_piece_type == 0) {
-                chosen = m;
+                chosen = move;
                 found = true;
                 break;
             }
             continue;
-        } else {
-            // Promotion move: accept only if UI provided a matching promotion piece type
-            if (promo_piece_type == 0) {
-                continue;
-            }
-            const Move::Flag want_flag = PromotionFlagForPieceType(promo_piece_type);
-            if (want_flag == flag) {
-                chosen = m;
-                found = true;
-                break;
-            }
+        }
+
+        if (promo_piece_type == 0) {
+            continue;
+        }
+
+        const Move::Flag wanted_flag = PromotionFlagForPieceType(promo_piece_type);
+        if (wanted_flag == flag) {
+            chosen = move;
+            found = true;
+            break;
         }
     }
 
     if (!found) {
-        return false;
+        return outcome;
     }
 
-    // Apply move and notify listeners about the move and the new position
-    Position::Undo u{};
-    position_->ApplyMove(chosen, u);
+    Position::Undo undo{};
+    position_->ApplyMove(chosen, undo);
 
-    const int eval_cp = EvaluateCp(*position_);
-    if (on_move_) {
-        on_move_(chosen, /*halfmove_index*/ 0, /*eval_centipawns*/ eval_cp);
-    }
-    EmitPosition_();
+    outcome.is_valid = true;
+    outcome.move = chosen;
+    outcome.eval_cp = EvaluateCp(*position_);
 
-    // Check for terminal state and either finish the game or pass control to the next side
     result_ = DetectResult(*position_);
-    if (result_ != GameResult::Ongoing) {
-        state_ = ControllerState::GameOver;
-        if (on_game_over_) {
-            const char* reason = nullptr;
-            switch (result_) {
-                case GameResult::DrawFiftyMove:
-                    reason = "draw by fifty-move rule";
-                    break;
-                case GameResult::DrawRepetition:
-                    reason = "draw by threefold repetition";
-                    break;
-                case GameResult::DrawStalemate:
-                    reason = "stalemate";
-                    break;
-                case GameResult::WhiteWon:
-                    reason = "checkmate — White wins";
-                    break;
-                case GameResult::BlackWon:
-                    reason = "checkmate — Black wins";
-                    break;
-                default:
-                    reason = "";
-                    break;
-            }
-            on_game_over_(result_, std::string(reason));
-        }
-        return true;
-    }
+    outcome.result = result_;
+    UpdateStateAfterTurn();
 
-    if (IsEngineToMove(*position_, players_)) {
-        EnterEngineThinking_();
-    } else {
-        EnterPlayerTurn_();
-    }
-
-    return true;
+    return outcome;
 }
 
-// Computes and emits a bitmask of legal targets for a given origin square
-void GameController::RequestLegalMask(uint8_t square) {
-    if (!on_legal_mask_) {
-        return;
-    }
+EngineTurnOutcome GameController::RunEngineTurn() {
+    EngineTurnOutcome outcome{};
 
     if (!position_) {
-        on_legal_mask_(square, 0ULL);
-        return;
+        return outcome;
+    }
+
+    if (!IsEngineToMove()) {
+        return outcome;
+    }
+
+    state_ = ControllerState::EngineThinking;
+
+    if (!engine_) {
+        engine_.reset(new SearchEngine(table_));
+    }
+
+    SearchLimits limits{};
+    if (engine_limits_.max_depth > 0) {
+        limits.max_depth = engine_limits_.max_depth;
+    }
+    if (engine_limits_.max_nodes > 0) {
+        limits.nodes_limit = engine_limits_.max_nodes;
+    }
+
+    SearchResult result = engine_->Search(*position_, limits);
+
+    std::ostringstream pv;
+    for (int i = 0; i < result.pv.length; ++i) {
+        const Move move = result.pv.moves[i];
+        pv << static_cast<int>(move.GetFrom()) << "-" << static_cast<int>(move.GetTo());
+        if (i + 1 < result.pv.length) {
+            pv << ' ';
+        }
+    }
+
+    outcome.principal_variation = pv.str();
+
+    if (result.best_move.GetFrom() == Move::None || result.best_move.GetTo() == Move::None) {
+        result_ = DetectResult(*position_);
+        outcome.result = result_;
+        UpdateStateAfterTurn();
+        return outcome;
+    }
+
+    Position::Undo undo{};
+    position_->ApplyMove(result.best_move, undo);
+
+    outcome.best_move_found = true;
+    outcome.best_move = result.best_move;
+    outcome.eval_cp = EvaluateCp(*position_);
+
+    result_ = DetectResult(*position_);
+    outcome.result = result_;
+    UpdateStateAfterTurn();
+
+    return outcome;
+}
+
+uint64_t GameController::GetLegalMask(uint8_t square) const {
+    if (!position_) {
+        return 0ULL;
+    }
+
+    if (state_ != ControllerState::PlayerTurn) {
+        return 0ULL;
     }
 
     const Side side = position_->IsWhiteToMove() ? Side::White : Side::Black;
+    const PlayerType player_type = (side == Side::White) ? players_.white : players_.black;
+    if (player_type != PlayerType::Human) {
+        return 0ULL;
+    }
 
     MoveList list;
     LegalMoveGen::Generate(*position_, side, list, false);
@@ -261,38 +295,63 @@ void GameController::RequestLegalMask(uint8_t square) {
     uint64_t mask = 0ULL;
     const uint8_t size = list.GetSize();
     for (uint8_t i = 0; i < size; ++i) {
-        const Move m = list[i];
-        if (m.GetFrom() == square) {
-            mask |= (1ULL << m.GetTo());
+        const Move move = list[i];
+        if (move.GetFrom() == square) {
+            mask |= (1ULL << move.GetTo());
         }
     }
 
-    on_legal_mask_(square, mask);
+    return mask;
 }
 
-// Stores engine search limits to be used on the next search start
-void GameController::SetEngineLimits(const EngineLimits& lim) {
-    engine_limits_ = lim;
+void GameController::SetEngineLimits(const EngineLimits& limits) {
+    engine_limits_ = limits;
 }
 
-// Enables or disables the engine for a given side and updates players configuration
 void GameController::SetEngineSide(Side side, bool enabled) {
     if (side == Side::White) {
         players_.white = enabled ? PlayerType::Engine : PlayerType::Human;
     } else {
         players_.black = enabled ? PlayerType::Engine : PlayerType::Human;
     }
+
+    UpdateStateAfterTurn();
 }
 
-// Exports the current position as a short FEN string
+bool GameController::HasPosition() const {
+    return position_ != nullptr;
+}
+
+bool GameController::IsWhiteToMove() const {
+    if (!position_) {
+        return true;
+    }
+    return position_->IsWhiteToMove();
+}
+
+bool GameController::IsEngineToMove() const {
+    if (!position_) {
+        return false;
+    }
+    return IsEngineSideToMove(*position_, players_);
+}
+
+ControllerState GameController::GetState() const {
+    return state_;
+}
+
 std::string GameController::GetFEN() const {
     if (!position_) {
         return std::string{};
     }
 
-    std::ostringstream oss;
-    oss << *position_;
-    return oss.str();
+    std::ostringstream output;
+    output << *position_;
+    return output.str();
+}
+
+std::string GameController::GetResultReason() const {
+    return ResultReason(result_);
 }
 
 GameResult GameController::GetResult() const {
@@ -306,139 +365,31 @@ int GameController::GetPiece(int square) const {
 
     auto [side, piece] = position_->GetPieces().GetPiece(square);
 
-    // return a index of pieces, where 0 - none piece, 1-6 - white side; 7-12 - black side
-    // 1 - pawn; 2 - knight; 3 - bishop; 4 - rook; 5 - queen; 6 - king
     if (piece == PieceType::None) {
         return 0;
     }
 
     const int base =
         (piece == PieceType::Pawn)   ? 1 :
-        (piece == PieceType::Knight) ? 2 :
-        (piece == PieceType::Bishop) ? 3 :
-        (piece == PieceType::Rook)   ? 4 :
-        (piece == PieceType::Queen)  ? 5 :
-        /* King */                     6;
+            (piece == PieceType::Knight) ? 2 :
+            (piece == PieceType::Bishop) ? 3 :
+            (piece == PieceType::Rook)   ? 4 :
+            (piece == PieceType::Queen)  ? 5 :
+            6;
+
     return (side == Side::White) ? base : base + 6;
 }
 
-// Registers UI callbacks
-void GameController::SetOnPosition(OnPosition callback) {
-    on_position_ = std::move(callback);
-}
-void GameController::SetOnMove(OnMove callback) {
-    on_move_ = std::move(callback);
-}
-void GameController::SetOnSearchInfo(OnSearchInfo callback) {
-    on_search_info_ = std::move(callback);
-}
-void GameController::SetOnBestMove(OnBestMove callback) {
-    on_best_move_  = std::move(callback);
-}
-void GameController::SetOnGameOver(OnGameOver callback) {
-    on_game_over_  = std::move(callback);
-}
-void GameController::SetOnLegalMask(OnLegalMask callback) {
-    on_legal_mask_ = std::move(callback);
-}
-
-void GameController::EnterPlayerTurn_() {
-    state_ = ControllerState::PlayerTurn;
-}
-
-// Runs a synchronous engine search, applies best move if any, and updates state/result accordingly
-void GameController::EnterEngineThinking_() {
+void GameController::UpdateStateAfterTurn() {
     if (!position_) {
+        state_ = ControllerState::Null;
         return;
     }
-    state_ = ControllerState::EngineThinking;
 
-    if (!engine_) {
-        engine_.reset(new SearchEngine(table_));
+    if (result_ != GameResult::Ongoing) {
+        state_ = ControllerState::GameOver;
+        return;
     }
 
-    SearchLimits limits{};
-    if (engine_limits_.max_depth > 0) {
-        limits.max_depth   = engine_limits_.max_depth;
-    }
-
-    if (engine_limits_.max_nodes > 0) {
-        limits.nodes_limit = engine_limits_.max_nodes;
-    }
-
-    // Synchronous search
-    SearchResult res = engine_->Search(*position_, limits);
-
-    // Emit best move along with a simple textual PV representation
-    if (on_best_move_) {
-        std::ostringstream pv;
-        for (int i = 0; i < res.pv.length; ++i) {
-            const Move m = res.pv.moves[i];
-            pv << static_cast<int>(m.GetFrom()) << "-" << static_cast<int>(m.GetTo());
-            if (i + 1 < res.pv.length) {
-                pv << ' ';
-            }
-        }
-        on_best_move_(res.best_move, pv.str());
-    }
-
-    // Apply best move if it looks valid and then evaluate, update position and check for terminal state
-    if (res.best_move.GetFrom() != Move::None && res.best_move.GetTo() != Move::None) {
-        Position::Undo u{};
-        position_->ApplyMove(res.best_move, u);
-
-        const int eval_cp = EvaluateCp(*position_);
-        if (on_move_) {
-            on_move_(res.best_move, /*halfmove_index*/ 0, /*eval_centipawns*/ eval_cp);
-        }
-        EmitPosition_();
-
-        result_ = DetectResult(*position_);
-        if (result_ != GameResult::Ongoing) {
-            state_ = ControllerState::GameOver;
-            if (on_game_over_) {
-                const char* reason = nullptr;
-                switch (result_) {
-                    case GameResult::DrawFiftyMove:
-                        reason = "draw by fifty-move rule";
-                        break;
-                    case GameResult::DrawRepetition:
-                        reason = "draw by threefold repetition";
-                        break;
-                    case GameResult::DrawStalemate:
-                        reason = "stalemate";
-                        break;
-                    case GameResult::WhiteWon:
-                        reason = "checkmate — White wins";
-                        break;
-                    case GameResult::BlackWon:
-                        reason = "checkmate — Black wins";
-                        break;
-                    default:
-                        reason = "";
-                        break;
-                }
-                on_game_over_(result_, std::string(reason));
-            }
-            return;
-        }
-    }
-
-    EnterPlayerTurn_();
-}
-
-void GameController::ApplyMoveAndNotify_(const Move& m, int eval_cp) {
-    Position::Undo u{};
-    position_->ApplyMove(m, u);
-    if (on_move_) {
-        on_move_(m, /*halfmove_index*/ 0, /*eval_centipawns*/ eval_cp);
-    }
-    EmitPosition_();
-}
-
-// Emits the current position snapshot via the OnPosition callback if it is set
-void GameController::EmitPosition_() const {
-    if (on_position_ && position_) {
-        on_position_(*position_);
-    }
+    state_ = IsEngineSideToMove(*position_, players_) ? ControllerState::EngineThinking : ControllerState::PlayerTurn;
 }

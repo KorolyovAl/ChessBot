@@ -1,5 +1,5 @@
 /************
-* GameControllerQt — Qt adapter wrapping the GameController class.
+* GameControllerQt - Qt adapter wrapping the GameController class.
 * It converts controller callbacks into Qt signals consumable by MainWindow.
 * The adapter does not contain game logic and keeps UI logic separated.
 * Use this class to bridge engine events to Qt widgets and back.
@@ -10,19 +10,19 @@
 #include <QByteArray>
 #include <QString>
 
-class GameController;
+#include "../engine_runtime/engine_runtime.h"
 
 class GameControllerQt : public QObject {
     Q_OBJECT
 
 public:
-    explicit GameControllerQt(GameController& controller, QObject* parent = nullptr);
-    explicit GameControllerQt(QObject* parent = nullptr);
+    explicit GameControllerQt(engine_runtime::EngineRuntime& runtime, QObject* parent = nullptr);
+    ~GameControllerQt() override;
 
     // UI commands (called from UI thread)
     Q_INVOKABLE void NewGame(bool white_engine, bool black_engine);
     Q_INVOKABLE void LoadFEN(const QString& fen, bool white_engine, bool black_engine);
-    Q_INVOKABLE bool MakeUserMove(int from, int to, int promo_piece_type = 0);
+    Q_INVOKABLE void MakeUserMove(int from, int to, int promo_piece_type = 0);
     Q_INVOKABLE void RequestLegalMask(int square);
     Q_INVOKABLE void SetEngineDepthLimit(int max_depth);
 
@@ -38,9 +38,5 @@ signals:
     void LegalMask(int square, quint64 mask);
 
 private:
-    void EmitSnapshotFromPosition();
-    QByteArray BuildPiecesArrayFromEngine() const; // uses board_state tools
-
-private:
-    GameController* controller_ = nullptr;
+    engine_runtime::EngineRuntime& runtime_;
 };

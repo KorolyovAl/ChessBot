@@ -8,21 +8,25 @@
 #include <QMainWindow>
 #include <QPointer>
 
+namespace engine_runtime {
+class EngineRuntime;
+}
+
 class BoardWidget;
 class GameControllerQt;
-class GameController;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
-    explicit MainWindow(GameController* controller, QWidget* parent = nullptr);
+    explicit MainWindow(engine_runtime::EngineRuntime& runtime, QWidget* parent = nullptr);
     ~MainWindow() override;
 
 private slots:
     void OnBoardSnapshot(const QByteArray& pieces, bool white_to_move,
                          int last_from, int last_to, quint64 legal_mask);
-    void OnMoveMade(int from_sq, int to_sq);
-    void OnBestMove(int from_sq, int to_sq);
+    void OnMoveMade(int from_sq, int to_sq, int eval_centipawn);
+    void OnBestMove(int from_sq, int to_sq, const QString& principal_variation);
+    void OnGameOver(int result, const QString& reason);
 
 private:
     void BuildUi();

@@ -1,18 +1,18 @@
 #include <QApplication>
 
 #include "mainwindow.h"
-#include "../engine_core/ai_logic/transposition_table.h"
-#include "../game_controller/game_controller.h"
-#include "game_controller_qt.h"
+#include "../engine_runtime/engine_runtime.h"
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
 
-    TranspositionTable tt(128);             // 128 MB cash
-    GameController controller(tt);
+    engine_runtime::EngineRuntime runtime(app, 128);
+    runtime.Start();
 
-    MainWindow window(&controller);
+    MainWindow window(runtime);
     window.show();
 
-    return app.exec();
+    const int exit_code = app.exec();
+    runtime.Stop();
+    return exit_code;
 }

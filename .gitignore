@@ -54,3 +54,4 @@ qrc_*.cpp        # сгенерированные .cpp от ресурсов
 
 key.txt*
 Code_style_prompt.txt
+errors/

@@ -6,10 +6,10 @@
 #include <QAction>
 #include <QStatusBar>
 
-MainWindow::MainWindow(GameController* controller, QWidget* parent)
+MainWindow::MainWindow(engine_runtime::EngineRuntime& runtime, QWidget* parent)
     : QMainWindow(parent)
 {
-    controller_qt_ = new GameControllerQt(*controller);
+    controller_qt_ = new GameControllerQt(runtime, this);
 
     BuildUi();
     WireSignals();
@@ -63,16 +63,15 @@ void MainWindow::WireSignals() {
             this, &MainWindow::OnMoveMade);
     connect(controller_qt_, &GameControllerQt::BestMove,
             this, &MainWindow::OnBestMove);
+    connect(controller_qt_, &GameControllerQt::GameOver,
+            this, &MainWindow::OnGameOver);
 
     if (board_widget_ != nullptr) {
         connect(board_widget_, &BoardWidget::RequestLegalMask,
                 controller_qt_, &GameControllerQt::RequestLegalMask);
-        connect(board_widget_, &BoardWidget::MoveChosen, controller_qt_,
-                [this](int from_sq, int to_sq, int promo_ui) {
-                    if (controller_qt_) {
-                        controller_qt_->MakeUserMove(from_sq, to_sq, promo_ui);
-                    }
-                });
+
+        connect(board_widget_, &BoardWidget::MoveChosen,
+                controller_qt_, &GameControllerQt::MakeUserMove);
     }
 }
 
@@ -83,15 +82,19 @@ void MainWindow::OnBoardSnapshot(const QByteArray& pieces, bool white_to_move,
     }
 }
 
-void MainWindow::OnMoveMade(int from_sq, int to_sq) {
+void MainWindow::OnMoveMade(int /*from_sq*/, int /*to_sq*/, int /*eval_centipawn*/) {
     if (board_widget_ != nullptr) {
         board_widget_->ClearSelection();
     }
 }
 
-void MainWindow::OnBestMove(int from_sq, int to_sq) {
+void MainWindow::OnBestMove(int /*from_sq*/, int /*to_sq*/, const QString& /*principal_variation*/) {
     if (board_widget_ != nullptr) {
         // Function keeps last move highlight in sync; actual board comes via snapshot signal.
         board_widget_->SetInCheckSquare(-1);
     }
+}
+
+void MainWindow::OnGameOver(int /*result*/, const QString& reason) {
+    statusBar()->showMessage(reason.isEmpty() ? "Game over" : reason);
 }

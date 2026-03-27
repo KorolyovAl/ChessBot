@@ -301,16 +301,16 @@ int BoardWidget::AskPromotionPiece(bool /*white_to_move*/) const {
                                                  items, 0, false, &ok);
 
     if (!ok) {
-        return 1;
+        return 4;
     }
     if (choice == "Queen") {
-        return 1;
+        return 4;
     }
     if (choice == "Rook") {
-        return 2;
-    }
-    if (choice == "Bishop") {
         return 3;
     }
-    return 4;
+    if (choice == "Bishop") {
+        return 2;
+    }
+    return 1;
 }

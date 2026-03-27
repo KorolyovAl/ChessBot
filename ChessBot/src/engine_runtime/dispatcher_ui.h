@@ -18,6 +18,7 @@ public:
 
         if (anchor_->thread() == QThread::currentThread()) {
             fn();
+            return;
         }
 
         QMetaObject::invokeMethod(anchor_, [fn = std::move(fn)]() mutable {
