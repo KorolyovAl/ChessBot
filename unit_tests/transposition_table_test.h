@@ -12,4 +12,5 @@ class TranspositionTableTest : public QObject {
 private slots:
     void Probe_ShouldHitWithEnoughDepthAndWindow();
     void Probe_ShouldMissOnShallowDepthOrWrongWindow();
+    void Probe_ShouldPreserveCaptureMetadata();
 };

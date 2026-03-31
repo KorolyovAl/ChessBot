@@ -74,6 +74,8 @@ Move TranspositionTable::EntryToMove(const Entry& entry) {
         move.SetTo(static_cast<uint8_t>(entry.best_to));
         move.SetAttackerType(entry.best_attacker_type);
         move.SetAttackerSide(entry.best_attacker_side);
+        move.SetDefenderType(entry.best_defender_type);
+        move.SetDefenderSide(entry.best_defender_side);
         move.SetFlag(static_cast<Move::Flag>(entry.best_flag));
     }
 
@@ -92,6 +94,8 @@ TranspositionTable::Entry TranspositionTable::MoveToEntry(uint64_t key, int dept
     entry.best_to = move.GetTo();
     entry.best_attacker_type = move.GetAttackerType();
     entry.best_attacker_side = move.GetAttackerSide();
+    entry.best_defender_type = move.GetDefenderType();
+    entry.best_defender_side = move.GetDefenderSide();
     entry.best_flag = static_cast<uint8_t>(move.GetFlag());
 
     return entry;

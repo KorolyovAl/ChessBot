@@ -53,3 +53,35 @@ void TranspositionTableTest::Probe_ShouldMissOnShallowDepthOrWrongWindow() {
         QVERIFY(!hit); // window excludes upper-bound usefulness
     }
 }
+
+void TranspositionTableTest::Probe_ShouldPreserveCaptureMetadata() {
+    TranspositionTable tt(4);
+
+    const uint64_t key = 0x2222333344445555ull;
+    const int depth = 5;
+    const int score = 180;
+    const Move best(
+        12,
+        28,
+        static_cast<uint8_t>(PieceType::Bishop),
+        static_cast<uint8_t>(Side::White),
+        static_cast<uint8_t>(PieceType::Knight),
+        static_cast<uint8_t>(Side::Black),
+        Move::Flag::Capture
+        );
+
+    tt.Store(key, depth, score, TranspositionTable::Bound::Exact, best);
+
+    int out_score = 0;
+    Move out_best;
+    const bool hit = tt.Probe(key, depth, score - 10, score + 10, out_score, out_best);
+
+    QVERIFY(hit);
+    QCOMPARE(out_best.GetFrom(), best.GetFrom());
+    QCOMPARE(out_best.GetTo(), best.GetTo());
+    QCOMPARE(out_best.GetAttackerType(), best.GetAttackerType());
+    QCOMPARE(out_best.GetAttackerSide(), best.GetAttackerSide());
+    QCOMPARE(out_best.GetDefenderType(), best.GetDefenderType());
+    QCOMPARE(out_best.GetDefenderSide(), best.GetDefenderSide());
+    QCOMPARE(static_cast<int>(out_best.GetFlag()), static_cast<int>(best.GetFlag()));
+}

@@ -6,6 +6,7 @@
 #pragma once
 
 #include <cstdint>
+#include <chrono>
 
 #include "../board_state/position.h"
 #include "../board_state/move.h"
@@ -13,6 +14,7 @@
 
 struct SearchLimits {
     int max_depth = 64;
+    int max_time_ms = 0;
     int64_t nodes_limit = 0; // 0 = unlimited
 };
 
@@ -39,16 +41,17 @@ public:
 
 private:
     // Core search routines
-    int AlphaBeta(Position& pos, int depth, int alpha, int beta, int halfmove, PvLine& pv);
-    int Quiescence(Position& pos, int alpha, int beta, int halfmove, PvLine& pv);
+    int AlphaBeta(Position& pos, int depth_left, int alpha, int beta, int ply, PvLine& pv);
+    int Quiescence(Position& pos, int alpha, int beta, int ply, PvLine& pv);
 
     // Time / stop helpers
     bool IsTimeUp() const noexcept;
+    bool CheckStopCondition() noexcept;
 
     // Mate-score normalization for transposition table
     static bool IsMateScore(int score) noexcept;
-    static int ScoreToTT(int score, int halfmove) noexcept;
-    static int ScoreFromTT(int score, int halfmove) noexcept;
+    static int ScoreToTT(int score, int ply) noexcept;
+    static int ScoreFromTT(int score, int ply) noexcept;
 
     // Helper predicates for move classification
     inline static bool IsPromotionFlag(Move::Flag f) {
@@ -95,29 +98,44 @@ private:
     }
 
     inline bool IncreaseNodeCounter() noexcept {
-        // First check external stop callback
-        if (is_stopped_ && is_stopped_()) {
+        if (search_aborted_) {
             return false;
         }
         // Pre-check node limit to avoid crossing it
         if (limits_.nodes_limit > 0 && nodes_ >= limits_.nodes_limit) {
+            search_aborted_ = true;
             return false;
         }
         ++nodes_;
+
+        if ((nodes_ & kStopCheckMask) == 0) {
+            if (CheckStopCondition()) {
+                return false;
+            }
+        }
+
         return true;
     }
 
 private:
+    using SearchClock = std::chrono::steady_clock;
+
     TranspositionTable& tt_;
     bool (*is_stopped_)() = nullptr;
 
+    static constexpr int64_t kStopCheckMask = 1023; // The number of nodes after which CheckStopCondition is executed
+
     int64_t nodes_ = 0;
-    uint16_t cutoff_keys_[256][2]{}; // Two cutoff moves per halfmove (0 = empty)
+    uint16_t cutoff_keys_[256][2]{}; // Two cutoff moves per ply (0 = empty)
     int history_[2][64][64]{};       // Simple move history (side, from, to)
 
     int lmr_base_index_ = 4;         // Start LMR from the 4th simple move
 
-    SearchLimits limits_{};
+    SearchLimits limits_;
+    bool search_aborted_ = false;
+    bool has_time_limit_ = false;
+    SearchClock::time_point deadline_;
+
 
     friend class SearchEngineTest;
 };

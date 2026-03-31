@@ -13,4 +13,8 @@ private slots:
     void PV_ShouldBeLegalSequence();
     void NodesLimit_ShouldBeRespected();
     void ScoreToTT_FromTT_ShouldRoundTrip();
+
+    void Search_ShouldReturnBestMove_WhenRootIsServedFromTT();
+    void Search_ShouldReturnMateScore_WhenSideToMoveIsCheckmated();
+    void Search_ShouldReturnZero_WhenSideToMoveIsStalemated();
 };

@@ -9,7 +9,7 @@ EngineRuntime::EngineRuntime(QObject& ui_anchor, size_t tt_size_hash)
     , controller_(table_)
     , dispatcher_(ui_anchor)
 {
-    //controller_.SetEngineLimits();
+    controller_.SetEngineLimits(EngineLimits{/*depth*/0, /*time, ms*/10'000, /*nodes*/0});
 }
 
 EngineRuntime::~EngineRuntime() {

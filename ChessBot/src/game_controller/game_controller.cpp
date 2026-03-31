@@ -1,5 +1,8 @@
 #include "game_controller.h"
 
+#include <algorithm>
+#include <cctype>
+#include <vector>
 #include <sstream>
 #include <stdexcept>
 
@@ -11,6 +14,17 @@
 #include "../engine_core/ai_logic/evaluation.h"
 
 namespace {
+
+struct ParsedFen {
+    std::string board;
+    uint8_t en_passant = Position::NONE;
+    bool white_long_castling = true;
+    bool white_short_castling = true;
+    bool black_long_castling = true;
+    bool black_short_castling = true;
+    uint16_t move_counter = 0;
+    uint8_t fifty_move_counter = 0;
+};
 
 inline bool IsSquareAttackedByEnemy(const Pieces& pcs, uint8_t sq, Side side) {
     return PsLegalMaskGen::SquareInDanger(pcs, sq, side);
@@ -109,6 +123,140 @@ inline std::string ResultReason(GameResult result) {
     }
 }
 
+uint8_t ParseEnPassantSquare(const std::string& token) {
+    if (token.size() != 2) {
+        return Position::NONE;
+    }
+
+    const char file = static_cast<char>(std::tolower(static_cast<unsigned char>(token[0])));
+    const char rank = token[1];
+    if (file < 'a' || file > 'h' || rank < '1' || rank > '8') {
+        return Position::NONE;
+    }
+
+    return static_cast<uint8_t>((rank - '1') * 8 + (file - 'a'));
+}
+
+uint16_t MoveCounterFromFen(bool white_to_move, int fullmove_number) {
+    fullmove_number = std::max(fullmove_number, 1);
+    const int raw_counter = (fullmove_number - 1) * 2 + (white_to_move ? 0 : 1);
+    return static_cast<uint16_t>(std::clamp(raw_counter, 0, 65535));
+}
+
+ParsedFen ParseFen(const std::string& fen) {
+    ParsedFen parsed{};
+
+    std::istringstream input(fen);
+    std::vector<std::string> tokens;
+    for (std::string token; input >> token;) {
+        tokens.push_back(token);
+    }
+
+    if (tokens.empty()) {
+        parsed.board = fen;
+        return parsed;
+    }
+
+    parsed.board = tokens[0];
+
+    // Preserve existing short-FEN behaviour for board-only input.
+    if (tokens.size() == 1) {
+        return parsed;
+    }
+
+    const bool white_to_move = tokens[1] != "b";
+
+    parsed.white_long_castling = false;
+    parsed.white_short_castling = false;
+    parsed.black_long_castling = false;
+    parsed.black_short_castling = false;
+
+    if (tokens.size() >= 3 && tokens[2] != "-") {
+        for (char ch : tokens[2]) {
+            switch (ch) {
+            case 'K':
+                parsed.white_short_castling = true;
+                break;
+            case 'Q':
+                parsed.white_long_castling = true;
+                break;
+            case 'k':
+                parsed.black_short_castling = true;
+                break;
+            case 'q':
+                parsed.black_long_castling = true;
+                break;
+            default:
+                break;
+            }
+        }
+    }
+
+    if (tokens.size() >= 4 && tokens[3] != "-") {
+        parsed.en_passant = ParseEnPassantSquare(tokens[3]);
+    }
+
+    int halfmove_clock = 0;
+    if (tokens.size() >= 5) {
+        try {
+            halfmove_clock = std::stoi(tokens[4]);
+        }
+        catch (...) {
+            halfmove_clock = 0;
+        }
+    }
+
+    int fullmove_number = 1;
+    if (tokens.size() >= 6) {
+        try {
+            fullmove_number = std::stoi(tokens[5]);
+        }
+        catch (...) {
+            fullmove_number = 1;
+        }
+    }
+
+    parsed.move_counter = MoveCounterFromFen(white_to_move, fullmove_number);
+    parsed.fifty_move_counter = static_cast<uint8_t>(std::clamp(halfmove_clock, 0, 255));
+    return parsed;
+}
+
+const char* MoveFlagSuffix(Move::Flag flag) {
+    switch (flag) {
+    case Move::Flag::WhiteShortCastling:
+    case Move::Flag::BlackShortCastling:
+        return "[O-O]";
+    case Move::Flag::WhiteLongCastling:
+    case Move::Flag::BlackLongCastling:
+        return "[O-O-O]";
+    case Move::Flag::EnPassantCapture:
+        return "[ep]";
+    case Move::Flag::PromoteToKnight:
+        return "[=N]";
+    case Move::Flag::PromoteToBishop:
+        return "[=B]";
+    case Move::Flag::PromoteToRook:
+        return "[=R]";
+    case Move::Flag::PromoteToQueen:
+        return "[=Q]";
+    default:
+        return "";
+    }
+}
+
+std::string FormatMoveForPv(const Move& move) {
+    if (move.GetFrom() == Move::None || move.GetTo() == Move::None) {
+        return "(none)";
+    }
+
+    std::ostringstream output;
+    output << static_cast<int>(move.GetFrom())
+           << "-"
+           << static_cast<int>(move.GetTo())
+           << MoveFlagSuffix(move.GetFlag());
+    return output.str();
+}
+
 } // namespace
 
 GameController::GameController(TranspositionTable& table)
@@ -124,6 +272,7 @@ void GameController::NewGame(const Players& players, const TimeControl& tc) {
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR",
         Position::NONE,
         true, true, true, true,
+        0,
         0
         ));
 
@@ -135,12 +284,18 @@ void GameController::LoadFEN(const std::string& short_fen, const Players& player
     time_control_ = tc;
     result_ = GameResult::Ongoing;
 
+    const ParsedFen parsed = ParseFen(short_fen);
+
     position_.reset(new Position(
-        short_fen,
-        Position::NONE,
-        true, true, true, true,
-        0
-        ));
+        parsed.board,
+        parsed.en_passant,
+        parsed.white_long_castling,
+        parsed.white_short_castling,
+        parsed.black_long_castling,
+        parsed.black_short_castling,
+        parsed.move_counter,
+        parsed.fifty_move_counter
+    ));
 
     UpdateStateAfterTurn();
 }
@@ -239,13 +394,15 @@ EngineTurnOutcome GameController::RunEngineTurn() {
     if (engine_limits_.max_nodes > 0) {
         limits.nodes_limit = engine_limits_.max_nodes;
     }
+    if (engine_limits_.max_time_ms > 0) {
+        limits.max_time_ms = engine_limits_.max_time_ms;
+    }
 
     SearchResult result = engine_->Search(*position_, limits);
 
     std::ostringstream pv;
     for (int i = 0; i < result.pv.length; ++i) {
-        const Move move = result.pv.moves[i];
-        pv << static_cast<int>(move.GetFrom()) << "-" << static_cast<int>(move.GetTo());
+        pv << FormatMoveForPv(result.pv.moves[i]);
         if (i + 1 < result.pv.length) {
             pv << ' ';
         }

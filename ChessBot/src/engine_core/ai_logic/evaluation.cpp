@@ -165,8 +165,6 @@ static inline bool HasCheapInterposition(const Pieces& pcs, Bitboard interpose, 
         return false;
     }
 
-    const int ds = static_cast<int>(defender);
-
     // Pawns: single or double push into an empty interpose square
     {
         Bitboard pawns = pcs.GetPieceBitboard(defender, PieceType::Pawn);

@@ -1,6 +1,7 @@
 #include <vector>
 #include <algorithm>
 #include <iostream>
+#include <sstream>
 
 #include "search.h"
 #include "../board_state/bitboard.h"
@@ -20,7 +21,7 @@ constexpr int kInfinity = 32000;
 constexpr int kMateScore = 31000;
 constexpr int kMateThreshold = kMateScore - 1024;
 
-inline int Clamp(int x, int lo, int hi) {
+int Clamp(int x, int lo, int hi) {
     if (x < lo) {
         return lo;
     }
@@ -30,6 +31,43 @@ inline int Clamp(int x, int lo, int hi) {
     }
     return x;
 }
+
+const char* MoveFlagSuffix(Move::Flag flag) {
+    switch (flag) {
+    case Move::Flag::WhiteShortCastling:
+    case Move::Flag::BlackShortCastling:
+        return "[O-O]";
+    case Move::Flag::WhiteLongCastling:
+    case Move::Flag::BlackLongCastling:
+        return "[O-O-O]";
+    case Move::Flag::EnPassantCapture:
+        return "[ep]";
+    case Move::Flag::PromoteToKnight:
+        return "[=N]";
+    case Move::Flag::PromoteToBishop:
+        return "[=B]";
+    case Move::Flag::PromoteToRook:
+        return "[=R]";
+    case Move::Flag::PromoteToQueen:
+        return "[=Q]";
+    default:
+        return "";
+    }
+}
+
+std::string FormatMoveForLog(const Move& move) {
+    if (move.GetFrom() == Move::None || move.GetTo() == Move::None) {
+        return "(none)";
+    }
+
+    std::ostringstream out;
+    out << static_cast<int>(move.GetFrom())
+        << "-"
+        << static_cast<int>(move.GetTo())
+        << MoveFlagSuffix(move.GetFlag());
+    return out.str();
+}
+
 } // namespace
 
 SearchEngine::SearchEngine(TranspositionTable& tt) : tt_(tt) {
@@ -50,35 +88,57 @@ bool SearchEngine::IsMateScore(int score) noexcept {
     return false;
 }
 
-int SearchEngine::ScoreToTT(int score, int halfmove) noexcept {
+int SearchEngine::ScoreToTT(int score, int ply) noexcept {
     if (!IsMateScore(score)) {
         return score;
     }
 
     if (score > 0) {
-        return score + halfmove;
+        return score + ply;
     }
     else {
-        return score - halfmove;
+        return score - ply;
     }
 }
 
-int SearchEngine::ScoreFromTT(int score, int halfmove) noexcept {
+int SearchEngine::ScoreFromTT(int score, int ply) noexcept {
     if (!IsMateScore(score)) {
         return score;
     }
     if (score > 0) {
-        return score - halfmove;
+        return score - ply;
     }
     else {
-        return score + halfmove;
+        return score + ply;
     }
 }
 
 bool SearchEngine::IsTimeUp() const noexcept {
+    if (search_aborted_) {
+        return true;
+    }
+
     if (is_stopped_ && is_stopped_()) {
         return true;
     }
+    return false;
+}
+
+bool SearchEngine::CheckStopCondition() noexcept {
+    if (search_aborted_) {
+        return true;
+    }
+
+    if (is_stopped_ && is_stopped_()) {
+        search_aborted_ = true;
+        return true;
+    }
+
+    if (has_time_limit_ && SearchClock::now() >= deadline_) {
+        search_aborted_ = true;
+        return true;
+    }
+
     return false;
 }
 
@@ -93,6 +153,13 @@ SearchResult SearchEngine::Search(Position& root, const SearchLimits& limits) {
     // Reset search state
     nodes_ = 0;
     limits_ = limits;
+
+    search_aborted_ = false;
+    has_time_limit_ = limits.max_time_ms > 0;
+    if (has_time_limit_) {
+        deadline_ = SearchClock::now() + std::chrono::milliseconds(limits.max_time_ms);
+    }
+
     ResetCutoffKeys();
 
     SearchResult result{};
@@ -105,16 +172,21 @@ SearchResult SearchEngine::Search(Position& root, const SearchLimits& limits) {
     const int max_depth = limits.max_depth;
 
     // Iterative deepening loop
-    for (int depth = 1; depth <= max_depth; ++depth) {
+    for (int root_depth = 1; root_depth <= max_depth; ++root_depth) {
+        if (CheckStopCondition()) {
+            break;
+        }
+
         // Aspiration window around previous score (tighter as depth grows)
-        int window = (depth <= 4) ? 25 : 15;
+        int window = (root_depth <= 4) ? 25 : 15;
         alpha = Clamp(prev_score - window, -kInfinity, kInfinity);
         beta  = Clamp(prev_score + window, -kInfinity, kInfinity);
 
         // Main alpha-beta search for the current depth
         PvLine pv{};
-        int score = AlphaBeta(root, depth, alpha, beta, /*halfmove=*/0, pv);
-        if (IsTimeUp()) {
+        int score = AlphaBeta(root, root_depth, alpha, beta, /*ply=*/0, pv);
+
+        if (search_aborted_) {
             break;
         }
 
@@ -123,17 +195,18 @@ SearchResult SearchEngine::Search(Position& root, const SearchLimits& limits) {
             alpha = -kInfinity;
             beta  = +kInfinity;
             pv.length = 0;
-            score = AlphaBeta(root, depth, alpha, beta, 0, pv);
+            score = AlphaBeta(root, root_depth, alpha, beta, /*ply=*/0, pv);
 
-            if (IsTimeUp()) {
+            if (search_aborted_) {
                 break;
             }
         }
 
         // Iteration result
         prev_score = score;
-        result.depth = depth;
+        result.depth = root_depth;
         result.score_cp = score;
+        result.best_move = Move{};
 
         if (pv.length > 0) {
             result.best_move = pv.moves[0];
@@ -141,6 +214,11 @@ SearchResult SearchEngine::Search(Position& root, const SearchLimits& limits) {
 
         result.pv = pv;
         result.nodes = nodes_;
+
+        std::cout << "search depth: " << root_depth
+                  << "; score cp: " << result.score_cp
+                  << "; best move: " << FormatMoveForLog(result.best_move)
+                  << std::endl;
 
         // Early stops: mate found or node limit reached
         if (IsMateScore(score)) {
@@ -151,18 +229,12 @@ SearchResult SearchEngine::Search(Position& root, const SearchLimits& limits) {
         if (limits_.nodes_limit > 0 && nodes_ >= limits_.nodes_limit) {
             break;
         }
-
-        int from = static_cast<int>(result.best_move.GetFrom());
-        int to = static_cast<int>(result.best_move.GetTo());
-
-        std::cout << "search depth: " << depth << "; score cp: " << result.score_cp << "; best move: "
-                  << from << "-" << to << std::endl;
     }
 
     return result;
 }
 
-int SearchEngine::Quiescence(Position& pos, int alpha, int beta, int halfmove, PvLine& pv) {
+int SearchEngine::Quiescence(Position& pos, int alpha, int beta, int ply, PvLine& pv) {
     if (!IncreaseNodeCounter()) {
         return 0;
     }
@@ -191,6 +263,14 @@ int SearchEngine::Quiescence(Position& pos, int alpha, int beta, int halfmove, P
     LegalMoveGen::Generate(pos, stm, ml, /*only_captures=*/!in_check);
 
     const size_t n = ml.GetSize();
+
+    if (n == 0) {
+        pv.length = 0;
+        if (in_check) {
+            return -kMateScore + ply;
+        }
+        return alpha;
+    }
 
     MoveOrdering::Context qctx{};
     qctx.tt_move      = Move{};
@@ -253,9 +333,13 @@ int SearchEngine::Quiescence(Position& pos, int alpha, int beta, int halfmove, P
         pos.ApplyMove(m, u);
 
         PvLine child{};
-        const int score = -Quiescence(pos, -beta, -alpha, halfmove + 1, child);
+        const int score = -Quiescence(pos, -beta, -alpha, ply + 1, child);
 
         pos.UndoMove(m, u);
+
+        if (search_aborted_) {
+            return 0;
+        }
 
         if (score >= beta) {
             return score;
@@ -279,7 +363,7 @@ int SearchEngine::Quiescence(Position& pos, int alpha, int beta, int halfmove, P
     return alpha;
 }
 
-int SearchEngine::AlphaBeta(Position& pos, int depth, int alpha, int beta, int halfmove, PvLine& pv) {
+int SearchEngine::AlphaBeta(Position& pos, int depth_left, int alpha, int beta, int ply, PvLine& pv) {
     // Node or time limit check
     if (!IncreaseNodeCounter()) {
         return 0;
@@ -291,8 +375,8 @@ int SearchEngine::AlphaBeta(Position& pos, int depth, int alpha, int beta, int h
     }
 
     // Leaf node goes to quiescence search
-    if (depth <= 0) {
-        return Quiescence(pos, alpha, beta, halfmove, pv);
+    if (depth_left <= 0) {
+        return Quiescence(pos, alpha, beta, ply, pv);
     }
 
     // Save original alpha for correct bound type when writing to TT
@@ -303,66 +387,87 @@ int SearchEngine::AlphaBeta(Position& pos, int depth, int alpha, int beta, int h
     int  tt_score = 0;
     Move tt_move{};
     if (kUseTT == true) {
-        if (tt_.Probe(key, depth, alpha, beta, tt_score, tt_move)) {
-            return ScoreFromTT(tt_score, halfmove);
+        if (tt_.Probe(key, depth_left, alpha, beta, tt_score, tt_move)) {
+            pv.length = 0;
+            if (tt_move.GetFrom() != Move::None && tt_move.GetTo() != Move::None) {
+                pv.moves[pv.length++] = tt_move;
+            }
+
+            return ScoreFromTT(tt_score, ply);
         }
     }
+
+    const Side stm = pos.IsWhiteToMove() ? Side::White : Side::Black;
+    const uint8_t king_sq = BOp::BitScanForward(pos.GetPieces().GetPieceBitboard(stm, PieceType::King));
+    const bool in_check = PsLegalMaskGen::SquareInDanger(pos.GetPieces(), king_sq, stm);
 
     // Static evaluation of the node (for futility and razoring)
     // Evaluate returns score from the side of White
     const int static_eval = pos.IsWhiteToMove() ? Evaluation::Evaluate(pos) : -Evaluation::Evaluate(pos);
 
     // Razoring at depth 1
-    if (depth == 1 && static_eval + 150 <= alpha) {
+    if (!in_check && depth_left == 1 && static_eval + 150 <= alpha) {
         PvLine qpv{};
-        const int q = Quiescence(pos, alpha - 1, alpha, halfmove, qpv);
+        const int q = Quiescence(pos, alpha - 1, alpha, ply, qpv);
+
+        if (search_aborted_) {
+            return 0;
+        }
+
         if (q <= alpha) {
             return q;
         }
     }
 
     // Null-move pruning (only if not in check and there are non-pawn pieces)
-    {
-        const Side stm = pos.IsWhiteToMove() ? Side::White : Side::Black;
-        const uint8_t ksq = BOp::BitScanForward(pos.GetPieces().GetPieceBitboard(stm, PieceType::King));
-        const bool in_check = PsLegalMaskGen::SquareInDanger(pos.GetPieces(), ksq, stm);
+    if (!in_check && depth_left >= 3) {
+        Bitboard non_pawn =
+            pos.GetPieces().GetPieceBitboard(stm, PieceType::Knight) |
+            pos.GetPieces().GetPieceBitboard(stm, PieceType::Bishop) |
+            pos.GetPieces().GetPieceBitboard(stm, PieceType::Rook)   |
+            pos.GetPieces().GetPieceBitboard(stm, PieceType::Queen);
 
-        if (!in_check && depth >= 3) {
-            Bitboard non_pawn =
-                pos.GetPieces().GetPieceBitboard(stm, PieceType::Knight) |
-                pos.GetPieces().GetPieceBitboard(stm, PieceType::Bishop) |
-                pos.GetPieces().GetPieceBitboard(stm, PieceType::Rook)   |
-                pos.GetPieces().GetPieceBitboard(stm, PieceType::Queen);
+        if (non_pawn) {
+            Position::NullUndo nu{};
+            pos.ApplyNullMove(nu);
 
-            if (non_pawn) {
-                Position::NullUndo nu{};
-                pos.ApplyNullMove(nu);
+            PvLine dummy{};
+            const int R = 2;
+            const int nm_score = -AlphaBeta(pos, depth_left - 1 - R, -beta, -beta + 1, ply + 1, dummy);
 
-                PvLine dummy{};
-                const int R = 2;
-                const int nm_score = -AlphaBeta(pos, depth - 1 - R, -beta, -beta + 1, halfmove + 1, dummy);
+            pos.UndoNullMove(nu);
 
-                pos.UndoNullMove(nu);
+            if (search_aborted_) {
+                return 0;
+            }
 
-                if (nm_score >= beta) {
-                    return nm_score;
-                }
+            if (nm_score >= beta) {
+                return nm_score;
             }
         }
     }
 
     // Full move generation
-    const Side stm = pos.IsWhiteToMove() ? Side::White : Side::Black;
     MoveList ml;
     LegalMoveGen::Generate(pos, stm, ml, /*only_captures=*/false);
 
     // Move ordering context (no move copying)
     const size_t n = ml.GetSize();
 
+    if (n == 0) {
+        pv.length = 0;
+        if (in_check) {
+            return -kMateScore + ply;
+        }
+        return 0;
+    }
+
+    const int ply_index = std::min(ply, 255);
+
     MoveOrdering::Context ctx{};
     ctx.tt_move      = tt_move;
-    ctx.cutoff1      = cutoff_keys_[halfmove][0];
-    ctx.cutoff2      = cutoff_keys_[halfmove][1];
+    ctx.cutoff1      = cutoff_keys_[ply_index][0];
+    ctx.cutoff2      = cutoff_keys_[ply_index][1];
     ctx.history      = &history_;
     ctx.side_to_move = stm;
 
@@ -399,7 +504,7 @@ int SearchEngine::AlphaBeta(Position& pos, int depth, int alpha, int beta, int h
 
         // Pre-SEE for captures at shallow depths
         int see = 0;
-        if (is_capture && !is_promo && depth <= 2) {
+        if (is_capture && !is_promo && depth_left <= 2) {
             see = StaticExchangeEvaluation::Capture(pos.GetPieces(), m);
         }
 
@@ -420,8 +525,8 @@ int SearchEngine::AlphaBeta(Position& pos, int depth, int alpha, int beta, int h
         const bool safe_check = gives_check && (see_on_checker >= 0);
 
         // Futility pruning of quiet moves at shallow depths (if move is not a safe check)
-        if (!safe_check && is_simple && depth <= 3 && !is_tt && !is_first) {
-            const int margin = (depth == 1 ? 100 : depth == 2 ? 200 : 300);
+        if (!safe_check && is_simple && depth_left <= 3 && !is_tt && !is_first) {
+            const int margin = (depth_left == 1 ? 100 : depth_left == 2 ? 200 : 300);
             if (static_eval + margin <= alpha) {
                 pos.UndoMove(m, u);
                 continue;
@@ -429,7 +534,7 @@ int SearchEngine::AlphaBeta(Position& pos, int depth, int alpha, int beta, int h
         }
 
         // SEE-based pruning of obviously losing captures at shallow depths (if move is not check)
-        if (!gives_check && is_capture && !is_promo && depth <= 2 && !is_tt && !is_first) {
+        if (!gives_check && is_capture && !is_promo && depth_left <= 2 && !is_tt && !is_first) {
             if (see < 0) {
                 pos.UndoMove(m, u);
                 continue;
@@ -437,41 +542,45 @@ int SearchEngine::AlphaBeta(Position& pos, int depth, int alpha, int beta, int h
         }
 
         // Late move pruning: very late quiet moves that are not checks and not TT moves
-        if (!safe_check && is_simple && !is_tt && depth > 7 && move_index >= lmr_base_index_ + 2) {
-            const int quiet_limit = 2 + (depth * depth) / 2;
+        if (!safe_check && is_simple && !is_tt && depth_left > 7 && move_index >= lmr_base_index_ + 2) {
+            const int quiet_limit = 2 + (depth_left * depth_left) / 2;
             if (move_index > quiet_limit) {
                 pos.UndoMove(m, u);
                 continue;
             }
         }
 
-        const int new_depth = depth - 1;
+        const int new_depth = depth_left - 1;
 
         int score = 0;
         PvLine child{};
 
         // LMR for late quiet moves
-        if (is_simple && depth >= 3 && move_index >= lmr_base_index_) {
+        if (is_simple && depth_left >= 3 && move_index >= lmr_base_index_) {
             const int r = 1;
-            score = -AlphaBeta(pos, new_depth - r, -alpha - 1, -alpha, halfmove + 1, child);
-            if (score > alpha) {
-                score = -AlphaBeta(pos, new_depth, -beta, -alpha, halfmove + 1, child);
+            score = -AlphaBeta(pos, new_depth - r, -alpha - 1, -alpha, ply + 1, child);
+            if (!search_aborted_ && score > alpha) {
+                score = -AlphaBeta(pos, new_depth, -beta, -alpha, ply + 1, child);
             }
         }
         else {
             // PVS: first move searched with full window, others with zero window and optional re-search
             if (is_first) {
-                score = -AlphaBeta(pos, new_depth, -beta, -alpha, halfmove + 1, child);
+                score = -AlphaBeta(pos, new_depth, -beta, -alpha, ply + 1, child);
             }
             else {
-                score = -AlphaBeta(pos, new_depth, -alpha - 1, -alpha, halfmove + 1, child);
-                if (score > alpha && score < beta) {
-                    score = -AlphaBeta(pos, new_depth, -beta, -alpha, halfmove + 1, child);
+                score = -AlphaBeta(pos, new_depth, -alpha - 1, -alpha, ply + 1, child);
+                if (!search_aborted_ && score > alpha && score < beta) {
+                    score = -AlphaBeta(pos, new_depth, -beta, -alpha, ply + 1, child);
                 }
             }
         }
 
         pos.UndoMove(m, u);
+
+        if (search_aborted_) {
+            return 0;
+        }
 
         // Update best score and best move
         if (score > best_score) {
@@ -484,16 +593,16 @@ int SearchEngine::AlphaBeta(Position& pos, int depth, int alpha, int beta, int h
         if (best_score >= beta) {
             if (is_simple) {
                 const uint16_t key16 = FromToKey(m);
-                if (cutoff_keys_[halfmove][0] != key16) {
-                    cutoff_keys_[halfmove][1] = cutoff_keys_[halfmove][0];
-                    cutoff_keys_[halfmove][0] = key16;
+                if (cutoff_keys_[ply_index][0] != key16) {
+                    cutoff_keys_[ply_index][1] = cutoff_keys_[ply_index][0];
+                    cutoff_keys_[ply_index][0] = key16;
                 }
 
                 // After undo, side to move is restored to the original one
                 const int side_index = pos.IsWhiteToMove() ? 1 : 0;
                 const int from = static_cast<int>(m.GetFrom());
                 const int to   = static_cast<int>(m.GetTo());
-                history_[side_index][from][to] += depth * depth;
+                history_[side_index][from][to] += depth_left * depth_left;
 
                 if (history_[side_index][from][to] > 32767) {
                     for (int s = 0; s < 2; ++s) {
@@ -507,7 +616,7 @@ int SearchEngine::AlphaBeta(Position& pos, int depth, int alpha, int beta, int h
             }
 
             if (kUseTT == true) {
-                tt_.Store(key, depth, ScoreToTT(best_score, halfmove), TranspositionTable::Bound::Lower, best_move);
+                tt_.Store(key, depth_left, ScoreToTT(best_score, ply), TranspositionTable::Bound::Lower, best_move);
             }
             return best_score;
         }
@@ -517,16 +626,25 @@ int SearchEngine::AlphaBeta(Position& pos, int depth, int alpha, int beta, int h
             alpha = best_score;
             pv.length = 0;
             pv.moves[pv.length++] = best_move;
-            for (int i = 0; i < best_child.length; ++i) {
+
+            for (int i = 0; i < best_child.length && pv.length < 128; ++i) {
                 pv.moves[pv.length++] = best_child.moves[i];
             }
         }
+    }
+
+    if (search_aborted_) {
+        return 0;
     }
 
     // Store node result in TT (bound type is chosen using original alpha)
     const auto bnd = (best_score <= alpha_orig)
                          ? TranspositionTable::Bound::Upper
                          : TranspositionTable::Bound::Exact;
-    tt_.Store(key, depth, ScoreToTT(best_score, halfmove), bnd, best_move);
+
+    if (kUseTT == true) {
+        tt_.Store(key, depth_left, ScoreToTT(best_score, ply), bnd, best_move);
+    }
+
     return best_score;
 }

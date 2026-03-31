@@ -25,7 +25,7 @@ public:
     Position(const std::string& short_fen, uint8_t en_passant,
              bool white_long, bool white_short,
              bool black_long, bool black_short,
-             uint16_t move_counter);
+             uint16_t move_counter, uint8_t fifty_move_counter = 0);
 
     // Read-only accessors
     const Pieces& GetPieces() const;

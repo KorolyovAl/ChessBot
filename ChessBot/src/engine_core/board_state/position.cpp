@@ -8,7 +8,7 @@
 Position::Position(const std::string& short_fen, uint8_t en_passant,
                    bool white_long, bool white_short,
                    bool black_long, bool black_short,
-                   uint16_t move_counter)
+                   uint16_t move_counter, uint8_t fifty_move_counter)
     : pieces_(short_fen),
     en_passant_(en_passant),
     white_long_castling_(white_long),
@@ -16,6 +16,7 @@ Position::Position(const std::string& short_fen, uint8_t en_passant,
     black_long_castling_(black_long),
     black_short_castling_(black_short),
     move_counter_(move_counter),
+    fifty_move_counter_(fifty_move_counter),
     hash_(pieces_, /*black_to_move=*/false, white_long, white_short, black_long, black_short)
 {
     // If the side to move is black, invert the hash.

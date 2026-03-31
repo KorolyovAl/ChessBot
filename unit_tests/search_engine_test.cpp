@@ -78,3 +78,58 @@ void SearchEngineTest::ScoreToTT_FromTT_ShouldRoundTrip() {
         QCOMPARE(unpack, v);
     }
 }
+
+void SearchEngineTest::Search_ShouldReturnBestMove_WhenRootIsServedFromTT() {
+    Position pos = Make("4k3/8/8/3q4/4Q3/8/8/4K3", true);
+
+    TranspositionTable tt(8);
+    SearchEngine engine(tt);
+
+    SearchLimits deep_limits;
+    deep_limits.max_depth = 3;
+
+    const SearchResult first = engine.Search(pos, deep_limits);
+    QVERIFY2(first.best_move.GetFrom() != Move::None, "Initial search should produce a legal best move");
+
+    SearchLimits shallow_limits;
+    shallow_limits.max_depth = 1;
+
+    const SearchResult second = engine.Search(pos, shallow_limits);
+
+    QVERIFY2(second.best_move.GetFrom() != Move::None, "TT-served root search should still expose best_move");
+    QVERIFY2(second.pv.length >= 1, "TT-served root search should still expose a root PV move");
+    QCOMPARE(second.best_move.GetFrom(), first.best_move.GetFrom());
+    QCOMPARE(second.best_move.GetTo(), first.best_move.GetTo());
+}
+
+void SearchEngineTest::Search_ShouldReturnMateScore_WhenSideToMoveIsCheckmated() {
+    Position pos = Make("7k/6Q1/6K1/8/8/8/8/8", false);
+
+    TranspositionTable tt(8);
+    SearchEngine engine(tt);
+
+    SearchLimits lim;
+    lim.max_depth = 2;
+
+    const SearchResult res = engine.Search(pos, lim);
+
+    QVERIFY2(res.score_cp < -30000, "Mate score should be returned for checkmate");
+    QCOMPARE(res.best_move.GetFrom(), Move::None);
+    QCOMPARE(res.best_move.GetTo(), Move::None);
+}
+
+void SearchEngineTest::Search_ShouldReturnZero_WhenSideToMoveIsStalemated() {
+    Position pos = Make("7k/5Q2/6K1/8/8/8/8/8", false);
+
+    TranspositionTable tt(8);
+    SearchEngine engine(tt);
+
+    SearchLimits lim;
+    lim.max_depth = 2;
+
+    const SearchResult res = engine.Search(pos, lim);
+
+    QCOMPARE(res.score_cp, 0);
+    QCOMPARE(res.best_move.GetFrom(), Move::None);
+    QCOMPARE(res.best_move.GetTo(), Move::None);
+}
