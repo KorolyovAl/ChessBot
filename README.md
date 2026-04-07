@@ -32,21 +32,12 @@ make -j
 
 ## Known Issues / Bugs / Limitations
 
-### Errors
-1. **Empty best-move returned in search (can crash/freeze).**  
-   In some positions, the move search may return an *empty/null move* as the “best move” at a given depth. This can lead to a crash or a hang.  
-   **Priority:** critical.
-
 ### Missing / Incomplete
 1. **No full game-end logic.**  
    There is no complete end-of-game handling yet (e.g., robust checkmate/stalemate/draw detection and proper game termination flow).
    **Priority:** medium.
 
-2. **UI does not redraw the player move before engine search starts.**  
-   When it becomes the engine’s turn, the search begins first and only then the player’s last move is rendered, which makes the UI feel “stuck” for a moment.  
-   **Priority:** medium.
-
-3. **No smooth drag-and-drop animation.**  
+2. **No smooth drag-and-drop animation.**  
    Piece movement is functional, but smooth dragging/animation is not implemented yet.  
    **Priority:** low.
 
